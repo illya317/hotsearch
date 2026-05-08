@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""
+Video feed tracker — Bilibili RSS via RSSHub.
+Usage:
+    python3 video_feeds.py                  # list latest videos from all feeds
+    python3 video_feeds.py --check-new      # compare with state, output new only
+"""
+
+import argparse
+import json
+import os
+import sys
+import urllib.request
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
+sys.path.insert(0, str(_PROJECT_ROOT / "src"))
+from hotsearch.config import CACHE_DIR
+
+RSSHUB = os.environ.get("RSSHUB", "http://localhost:1200")
+STATE_FILE = CACHE_DIR / "state.json"
+
+VIDEO_FEEDS = [
+    ("军武志", f"{RSSHUB}/bilibili/user/video/435931665?limit=3"),
+    ("麻薯波比呀", f"{RSSHUB}/bilibili/user/video/703186600?limit=3"),
+    ("河畔的伯爵", f"{RSSHUB}/bilibili/user/video/1596926736?limit=3"),
+    ("空山猎人", f"{RSSHUB}/bilibili/user/video/3493108557809994?limit=3"),
+    ("小约翰可汗", f"{RSSHUB}/bilibili/user/video/23947287?limit=3"),
+    ("军情巴朗", f"{RSSHUB}/bilibili/user/video/1975692083?limit=3"),
+]
+
+
+def fetch_url(url: str, timeout: int = 15) -> str:
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Anya/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8")
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def parse_latest_item(xml_text: str) -> dict | None:
+    try:
+        root = ET.fromstring(xml_text)
+        item = root.find(".//item")
+        if item is not None:
+            return {
+                "title": item.findtext("title", ""),
+                "link": item.findtext("link", ""),
+            }
+    except Exception:
+        pass
+    return None
+
+
+def parse_rss_titles(xml_text: str, limit: int = 3) -> list[str]:
+    try:
+        root = ET.fromstring(xml_text)
+        titles = []
+        for item in root.findall(".//item"):
+            t = item.findtext("title", "")
+            if t:
+                titles.append(f"  • {t}")
+                if len(titles) >= limit:
+                    break
+        return titles
+    except Exception:
+        return ["  • (parse error)"]
+
+
+def load_state() -> dict:
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except Exception:
+        return {}
+
+
+def save_state(state: dict):
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False))
+
+
+def get_videos() -> str:
+    """Return formatted video list from all feeds."""
+    sections = ["📺 视频更新"]
+    for name, url in VIDEO_FEEDS:
+        data = fetch_url(url)
+        if not data.startswith("Error"):
+            titles = parse_rss_titles(data, 2)
+            if titles:
+                sections.append(f"\n【{name}】")
+                sections.extend(titles)
+    return "\n".join(sections)
+
+
+def check_new_videos() -> list[str]:
+    """Check for new videos, update state, return formatted new items."""
+    state = load_state()
+    videos = state.get("videos", {})
+    new_items = []
+    for name, url in VIDEO_FEEDS:
+        check_url = url.replace("limit=3", "limit=1")
+        data = fetch_url(check_url)
+        if data.startswith("Error"):
+            continue
+        item = parse_latest_item(data)
+        if item and item["title"] != videos.get(name):
+            new_items.append(f"📺 {name}: {item['title']}")
+            videos[name] = item["title"]
+    state["videos"] = videos
+    save_state(state)
+    return new_items
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Video feed tracker")
+    parser.add_argument("--check-new", action="store_true", help="Check for new videos only")
+    args = parser.parse_args()
+
+    if args.check_new:
+        new_items = check_new_videos()
+        if new_items:
+            print("\n".join(new_items))
+        else:
+            print("No new videos")
+    else:
+        print(get_videos())
+
+
+if __name__ == "__main__":
+    main()
