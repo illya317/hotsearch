@@ -10,16 +10,19 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch.config import CACHE_DIR
+from hotsearch import CACHE_FEEDS_DIR
 
+CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 RSSHUB = os.environ.get("RSSHUB", "http://localhost:1200")
-STATE_FILE = CACHE_DIR / "state.json"
+STATE_FILE = CACHE_FEEDS_DIR / "video_state.json"
 
 VIDEO_FEEDS = [
     ("军武志", f"{RSSHUB}/bilibili/user/video/435931665?limit=3"),
@@ -71,14 +74,23 @@ def parse_rss_titles(xml_text: str, limit: int = 3) -> list[str]:
 
 def load_state() -> dict:
     try:
-        return json.loads(STATE_FILE.read_text())
+        data = json.loads(STATE_FILE.read_text())
+        # Migrate old format: {"videos": {"name": "title"}} -> {"videos": {"name": {"title": "...", "updated_at": "..."}}}
+        videos = data.get("videos", {})
+        migrated = {}
+        for name, val in videos.items():
+            if isinstance(val, str):
+                migrated[name] = {"title": val, "time": "1970-01-01 00:00", "timestamp": 0}
+            else:
+                migrated[name] = val
+        return {"videos": migrated}
     except Exception:
         return {}
 
 
 def save_state(state: dict):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False))
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
 
 
 def get_videos() -> str:
@@ -99,15 +111,21 @@ def check_new_videos() -> list[str]:
     state = load_state()
     videos = state.get("videos", {})
     new_items = []
+    now = datetime.now()
     for name, url in VIDEO_FEEDS:
         check_url = url.replace("limit=3", "limit=1")
         data = fetch_url(check_url)
         if data.startswith("Error"):
             continue
         item = parse_latest_item(data)
-        if item and item["title"] != videos.get(name):
+        current_title = videos.get(name, {}).get("title")
+        if item and item["title"] != current_title:
             new_items.append(f"📺 {name}: {item['title']}")
-            videos[name] = item["title"]
+            videos[name] = {
+                "title": item["title"],
+                "time": now.strftime("%Y-%m-%d %H:%M"),
+                "timestamp": time.time(),
+            }
     state["videos"] = videos
     save_state(state)
     return new_items

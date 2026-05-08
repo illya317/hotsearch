@@ -25,8 +25,8 @@ def get_mem():
     return f"用 {p[2]}, 剩 {p[3]}" if len(p) >= 4 else "N/A"
 
 def get_load():
-    out = run_cmd("cat /proc/loadavg")
-    return out.split()[:3] if out else ["?", "?", "?"]
+    out = run_cmd("cat /proc/loadavg 2>/dev/null || uptime | awk '{print $(NF-2), $(NF-1), $NF}'")
+    return out.replace(',', '').split()[:3] if out else ["?", "?", "?"]
 
 def get_ip():
     out = run_cmd("curl -s icanhazip.com 2>/dev/null || curl -s ifconfig.me 2>/dev/null")

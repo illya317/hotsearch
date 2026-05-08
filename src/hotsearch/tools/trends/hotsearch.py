@@ -9,41 +9,34 @@
       python3 hotsearch.py eastmoney 5 --feishu --agent anya --retry 5
 """
 
-import sys
 import json
 import os
+import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 
-# 平台配置: (显示名, version, sub_tab, 需要page参数)
-PLATFORMS = {
-    "zhihu":       ("知乎",     1, None,         False),
-    "weibo":       ("微博",     2, "search",     False),
-    "xiaohongshu": ("小红书",   1, "hot-search",  False),
-    "bilibili":    ("哔哩哔哩", 1, "popular",     True),
-    "ithome":      ("IT之家",   1, "today",       False),
-    "eastmoney":   ("东方财富", 1, "news",        False),
-    "douban":      ("豆瓣电影", 1, "movie",       False),
-}
+from hotsearch import PLATFORMS_CONFIG
 
-# tab 名与 API tab 参数不同的映射
-TAB_OVERRIDES = {
-    "douban": "douban-media",
-}
 
-# 快捷组合
-GROUPS = {
-    "hot": ["zhihu", "weibo"],
-}
+def _load_config():
+    data = json.loads(PLATFORMS_CONFIG.read_text())
+    return data["platforms"], data.get("tab_overrides", {}), data.get("groups", {})
+
+
+PLATFORMS, TAB_OVERRIDES, GROUPS = _load_config()
 
 
 def fetch_hotsearch(platform: str, limit: int = 10):
-    name, version, sub_tab, needs_page = PLATFORMS[platform]
+    cfg = PLATFORMS[platform]
+    name = cfg["display_name"]
+    version = cfg["version"]
+    sub_tab = cfg.get("sub_tab")
+    needs_page = cfg.get("needs_page", False)
 
     tab = TAB_OVERRIDES.get(platform, platform)
     params = f"tab={tab}&date_type=now&version={version}"
@@ -70,7 +63,7 @@ def fetch_hotsearch(platform: str, limit: int = 10):
 
 
 def format_hotsearch(platform: str, items: list) -> str:
-    name = PLATFORMS[platform][0]
+    name = PLATFORMS[platform]["display_name"]
     lines = [f"🔥 {name}热榜 TOP {len(items)}", ""]
 
     for i, item in enumerate(items, 1):
@@ -96,8 +89,8 @@ def format_hotsearch(platform: str, items: list) -> str:
 
 def list_platforms():
     print("\n支持的平台：\n")
-    for key, (name, *_) in sorted(PLATFORMS.items()):
-        print(f"  {key:15} - {name}")
+    for key, cfg in sorted(PLATFORMS.items()):
+        print(f"  {key:15} - {cfg['display_name']}")
     print()
 
 
@@ -135,9 +128,9 @@ def main():
             if items:
                 all_text.append(format_hotsearch(p, items))
             else:
-                all_text.append(f"⚠️ {PLATFORMS[p][0]}: 未获取到数据\n")
+                all_text.append(f"⚠️ {PLATFORMS[p]['display_name']}: 未获取到数据\n")
         except Exception as e:
-            all_text.append(f"⚠️ {PLATFORMS[p][0]}: {e}\n")
+            all_text.append(f"⚠️ {PLATFORMS[p]['display_name']}: {e}\n")
 
     output = "\n".join(all_text).strip()
     print(output)

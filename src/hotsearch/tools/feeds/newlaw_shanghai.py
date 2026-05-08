@@ -7,21 +7,21 @@
 """
 
 import json
-import os
 import subprocess
 import sys
+import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch.config import DATA_DIR
+from hotsearch import CACHE_FEEDS_DIR
 
 # --- 配置 ---
 API_BASE = "https://law.sfj.sh.gov.cn/yidianApi/api/v1"
-DATA_DIR = Path(os.environ.get("DATA_DIR", str(DATA_DIR)))
-LAST_FILE = DATA_DIR / "newlaw_shanghai_last.json"
+CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
+LAST_FILE = CACHE_FEEDS_DIR / "newlaw_shanghai_last.json"
 
 PAGE_SIZE = 50
 
@@ -64,18 +64,72 @@ def fetch_latest():
 
 def load_last():
     if LAST_FILE.exists():
-        return json.loads(LAST_FILE.read_text(encoding="utf-8"))
-    return []
+        data = json.loads(LAST_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return {"laws": data, "updated_at": "1970-01-01T00:00:00"}
+        return data
+    return {"laws": [], "updated_at": "1970-01-01T00:00:00"}
 
 
 def save_last(laws):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    LAST_FILE.write_text(json.dumps(laws, ensure_ascii=False, indent=2), encoding="utf-8")
+    CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
+    now = datetime.now()
+    payload = {
+        "laws": laws,
+        "time": now.strftime("%Y-%m-%d %H:%M"),
+        "timestamp": time.time(),
+    }
+    LAST_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def find_new(current, last):
     last_ids = {law["law_id"] for law in last}
     return [law for law in current if law["law_id"] not in last_ids]
+
+
+def format_law(law):
+    timeliness = law.get("timeliness", "")
+    return (
+        f"▸ 【{law['law_type']}】{law['law_name']}\n"
+        f"  施行: {law['implement_date'] or '—'}  {timeliness}"
+    )
+
+
+def check_new_shanghai_laws() -> list[str]:
+    """Check for new Shanghai laws, update state, return formatted new items."""
+    current = fetch_latest()
+    if not current:
+        return []
+
+    last = load_last()
+    if not last["laws"]:
+        save_last(current)
+        return []
+
+    new_laws = find_new(current, last["laws"])
+    if new_laws:
+        save_last(current)
+        today = datetime.now().strftime("%Y-%m-%d")
+        lines = [f"📜 上海新法速递 ({today})\n"]
+        for law in new_laws:
+            lines.append(format_law(law))
+            lines.append("")
+        lines.append(f"共 {len(new_laws)} 条")
+        lines.append("来源: law.sfj.sh.gov.cn")
+        return ["\n".join(lines)]
+    return []
+
+
+def format_all(laws):
+    """格式化全部法律列表"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    lines = [f"📜 上海法规 ({today})\n"]
+    for law in laws:
+        lines.append(format_law(law))
+        lines.append("")
+    lines.append(f"共 {len(laws)} 条")
+    lines.append("来源: law.sfj.sh.gov.cn")
+    return "\n".join(lines)
 
 
 def format_message(new_laws):
@@ -92,18 +146,27 @@ def format_message(new_laws):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="上海地方法规查询")
+    parser.add_argument("--list", action="store_true", help="列出最新地方法规")
+    args = parser.parse_args()
+
     current = fetch_latest()
     if not current:
         print("No data from API")
         return
 
+    if args.list:
+        print(format_all(current))
+        return
+
     last = load_last()
-    if not last:
+    if not last["laws"]:
         save_last(current)
         print(f"First run, saved baseline: {len(current)} laws")
         return
 
-    new_laws = find_new(current, last)
+    new_laws = find_new(current, last["laws"])
     if new_laws:
         msg = format_message(new_laws)
         print(msg)
@@ -111,7 +174,6 @@ def main():
         print(f"Found {len(new_laws)} new laws")
     else:
         print("No new Shanghai laws")
-        save_last(current)
 
 
 if __name__ == "__main__":

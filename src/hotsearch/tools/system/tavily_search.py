@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import os
 import pathlib
 import re
 import sys
 import urllib.request
+
+from hotsearch import CACHE_SEARCH_DIR
 
 TAVILY_URL = "https://api.tavily.com/search"
 
@@ -149,6 +152,14 @@ def to_markdown(obj: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def _save_search(query: str, data: dict):
+    CACHE_SEARCH_DIR.mkdir(parents=True, exist_ok=True)
+    key = hashlib.md5(query.encode()).hexdigest()[:16]
+    path = CACHE_SEARCH_DIR / f"tavily_{key}.json"
+    path.write_text(json.dumps({"query": query, "data": data, "source": "tavily"}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--query", required=True)
@@ -166,6 +177,7 @@ def main():
         choices=["raw", "brave", "md"],
         help="Output format: raw (default) | brave (title/url/snippet) | md (human-readable)",
     )
+    ap.add_argument("--save", action="store_true", help="Save raw JSON to data/cache/search/")
     args = ap.parse_args()
 
     res = tavily_search(
@@ -174,6 +186,10 @@ def main():
         include_answer=args.include_answer,
         search_depth=args.search_depth,
     )
+
+    if args.save:
+        path = _save_search(args.query, res)
+        sys.stderr.write(f"Saved to {path}\n")
 
     if args.format == "md":
         sys.stdout.write(to_markdown(res))

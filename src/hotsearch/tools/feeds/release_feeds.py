@@ -9,15 +9,18 @@ Usage:
 import argparse
 import json
 import sys
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch.config import CACHE_DIR
+from hotsearch import CACHE_FEEDS_DIR
 
-STATE_FILE = CACHE_DIR / "state.json"
+CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
+STATE_FILE = CACHE_FEEDS_DIR / "release_state.json"
 
 RELEASE_FEEDS = {
     "OpenClaw": "https://github.com/openclaw/openclaw/releases.atom",
@@ -54,14 +57,23 @@ def get_latest_release(atom_url: str) -> dict | None:
 
 def load_state() -> dict:
     try:
-        return json.loads(STATE_FILE.read_text())
+        data = json.loads(STATE_FILE.read_text())
+        # Migrate old format: {"releases": {"name": "title"}} -> {"releases": {"name": {"title": "...", "updated_at": "..."}}}
+        releases = data.get("releases", {})
+        migrated = {}
+        for name, val in releases.items():
+            if isinstance(val, str):
+                migrated[name] = {"title": val, "time": "1970-01-01 00:00", "timestamp": 0}
+            else:
+                migrated[name] = val
+        return {"releases": migrated}
     except Exception:
         return {}
 
 
 def save_state(state: dict):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False))
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
 
 
 def get_releases() -> str:
@@ -81,11 +93,17 @@ def check_new_releases() -> list[str]:
     state = load_state()
     releases = state.get("releases", {})
     new_items = []
+    now = datetime.now()
     for name, url in RELEASE_FEEDS.items():
         release = get_latest_release(url)
-        if release and release["title"] != releases.get(name):
+        current_title = releases.get(name, {}).get("title")
+        if release and release["title"] != current_title:
             new_items.append(f"📦 {name}: {release['title']}")
-            releases[name] = release["title"]
+            releases[name] = {
+                "title": release["title"],
+                "time": now.strftime("%Y-%m-%d %H:%M"),
+                "timestamp": time.time(),
+            }
     state["releases"] = releases
     save_state(state)
     return new_items

@@ -16,7 +16,10 @@ def get_credentials(agent: str | None = None) -> tuple[str | None, str | None]:
         app_secret = os.getenv(f"FS_{name}S")
         if app_id and app_secret:
             return app_id, app_secret
-    return os.getenv("FEISHU_APP_ID"), os.getenv("FEISHU_APP_SECRET")
+    # Fallback: read FS_ANYA / FS_ANYAS or FEISHU_APP_ID / FEISHU_APP_SECRET
+    app_id = os.getenv("FEISHU_APP_ID") or os.getenv("FS_ANYA")
+    app_secret = os.getenv("FEISHU_APP_SECRET") or os.getenv("FS_ANYAS")
+    return app_id, app_secret
 
 
 def get_receiver(agent: str | None = None) -> str | None:
@@ -24,7 +27,7 @@ def get_receiver(agent: str | None = None) -> str | None:
         val = os.getenv(f"FS_KOITO_{agent.upper()}")
         if val:
             return val
-    return os.getenv("FEISHU_RECEIVER_ID")
+    return os.getenv("FEISHU_RECEIVER_ID") or os.getenv("FS_KOITO_ANYA")
 
 
 def get_token(app_id: str, app_secret: str) -> str | None:

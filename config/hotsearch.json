@@ -1,0 +1,52 @@
+{
+  "platforms": {
+    "zhihu": {
+      "display_name": "知乎",
+      "version": 1,
+      "sub_tab": null,
+      "needs_page": false
+    },
+    "weibo": {
+      "display_name": "微博",
+      "version": 2,
+      "sub_tab": "search",
+      "needs_page": false
+    },
+    "xiaohongshu": {
+      "display_name": "小红书",
+      "version": 1,
+      "sub_tab": "hot-search",
+      "needs_page": false
+    },
+    "bilibili": {
+      "display_name": "哔哩哔哩",
+      "version": 1,
+      "sub_tab": "popular",
+      "needs_page": true
+    },
+    "ithome": {
+      "display_name": "IT之家",
+      "version": 1,
+      "sub_tab": "today",
+      "needs_page": false
+    },
+    "eastmoney": {
+      "display_name": "东方财富",
+      "version": 1,
+      "sub_tab": "news",
+      "needs_page": false
+    },
+    "douban": {
+      "display_name": "豆瓣电影",
+      "version": 1,
+      "sub_tab": "movie",
+      "needs_page": false
+    }
+  },
+  "tab_overrides": {
+    "douban": "douban-media"
+  },
+  "groups": {
+    "hot": ["zhihu", "weibo"]
+  }
+}

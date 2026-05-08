@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -7,6 +8,8 @@ import re
 import sys
 import urllib.request
 import urllib.error
+
+from hotsearch import CACHE_SEARCH_DIR
 
 EXA_URL = "https://api.exa.ai/search"
 
@@ -124,6 +127,14 @@ def to_markdown(obj: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def _save_search(query: str, data: dict):
+    CACHE_SEARCH_DIR.mkdir(parents=True, exist_ok=True)
+    key = hashlib.md5(query.encode()).hexdigest()[:16]
+    path = CACHE_SEARCH_DIR / f"exa_{key}.json"
+    path.write_text(json.dumps({"query": query, "data": data, "source": "exa"}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--query", required=True)
@@ -132,6 +143,7 @@ def main():
     ap.add_argument("--text-max-chars", type=int, default=0, help="Fetch full text up to N chars (0=off)")
     ap.add_argument("--highlights", action="store_true", help="Include highlight snippets")
     ap.add_argument("--format", default="raw", choices=["raw", "brave", "md"])
+    ap.add_argument("--save", action="store_true", help="Save raw JSON to data/cache/search/")
     args = ap.parse_args()
 
     res = search_all(
@@ -141,6 +153,10 @@ def main():
         text_max_chars=args.text_max_chars,
         highlights=args.highlights,
     )
+
+    if args.save:
+        path = _save_search(args.query, res)
+        sys.stderr.write(f"Saved to {path}\n")
 
     if args.format == "md":
         sys.stdout.write(to_markdown(res))

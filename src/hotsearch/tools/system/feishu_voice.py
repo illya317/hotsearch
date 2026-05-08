@@ -26,7 +26,7 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch.config import VOICES_CONFIG
+from hotsearch import VOICES_CONFIG
 from hotsearch.tools.system.feishu_send import get_credentials, get_receiver, get_token, send_message
 
 DEFAULT_VOICE = "female-shaonv"

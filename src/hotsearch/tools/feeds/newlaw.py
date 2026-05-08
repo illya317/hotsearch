@@ -7,21 +7,21 @@
 """
 
 import json
-import os
 import subprocess
 import sys
+import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch.config import DATA_DIR
+from hotsearch import CACHE_FEEDS_DIR
 
 # --- 配置 ---
 API_URL = "https://flk.npc.gov.cn/law-search/search/list"
-DATA_DIR = Path(os.environ.get("DATA_DIR", str(DATA_DIR)))
-LAST_FILE = DATA_DIR / "newlaw_last.json"
+CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
+LAST_FILE = CACHE_FEEDS_DIR / "newlaw_last.json"
 # 只关注中央法律法规（不含地方法规）
 FLFG_CODES = [100, 110, 120, 130, 140, 150, 155, 160, 170, 180, 190, 195, 200, 210, 215, 220, 320, 330, 340, 350]
 PAGE_SIZE = 20
@@ -78,14 +78,24 @@ def fetch_latest():
 def load_last():
     """加载上次记录"""
     if LAST_FILE.exists():
-        return json.loads(LAST_FILE.read_text(encoding="utf-8"))
-    return []
+        data = json.loads(LAST_FILE.read_text(encoding="utf-8"))
+        # Migrate old format (list) -> new format {"laws": [...], "updated_at": "..."}
+        if isinstance(data, list):
+            return {"laws": data, "updated_at": "1970-01-01T00:00:00"}
+        return data
+    return {"laws": [], "updated_at": "1970-01-01T00:00:00"}
 
 
 def save_last(laws):
     """保存本次记录"""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    LAST_FILE.write_text(json.dumps(laws, ensure_ascii=False, indent=2), encoding="utf-8")
+    CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
+    now = datetime.now()
+    payload = {
+        "laws": laws,
+        "time": now.strftime("%Y-%m-%d %H:%M"),
+        "timestamp": time.time(),
+    }
+    LAST_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def find_new(current, last):
@@ -94,23 +104,73 @@ def find_new(current, last):
     return [law for law in current if law["bbbs"] not in last_ids]
 
 
+def format_law(law):
+    sxx = "🟢有效" if law["sxx"] == 3 else "🔵尚未生效"
+    return (
+        f"▸ 【{law['flxz']}】{law['title']}\n"
+        f"  公布: {law['gbrq'] or '—'}  施行: {law['sxrq'] or '—'}  {sxx}"
+    )
+
+
+def check_new_laws() -> list[str]:
+    """Check for new laws, update state, return formatted new items."""
+    current = fetch_latest()
+    if not current:
+        return []
+
+    last = load_last()
+    if not last["laws"]:
+        save_last(current)
+        return []
+
+    new_laws = find_new(current, last["laws"])
+    if new_laws:
+        save_last(current)
+        today = datetime.now().strftime("%Y-%m-%d")
+        lines = [f"📜 新法速递 ({today})\n"]
+        for law in new_laws:
+            lines.append(format_law(law))
+            lines.append("")
+        lines.append(f"共 {len(new_laws)} 条新法律法规")
+        return ["\n".join(lines)]
+    return []
+
+
+def format_all(laws):
+    """格式化全部法律列表"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    lines = [f"📜 法律法规 ({today})\n"]
+    for law in laws:
+        lines.append(format_law(law))
+        lines.append("")
+    lines.append(f"共 {len(laws)} 条")
+    return "\n".join(lines)
+
+
 def format_message(new_laws):
     """格式化飞书消息"""
     today = datetime.now().strftime("%Y-%m-%d")
     lines = [f"📜 新法速递 ({today})\n"]
     for law in new_laws:
-        sxx = "🟢有效" if law["sxx"] == 3 else "🔵尚未生效"
-        lines.append(f"▸ 【{law['flxz']}】{law['title']}")
-        lines.append(f"  公布: {law['gbrq'] or '—'}  施行: {law['sxrq'] or '—'}  {sxx}")
+        lines.append(format_law(law))
         lines.append("")
     lines.append(f"共 {len(new_laws)} 条新法律法规")
     return "\n".join(lines)
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="国家法律法规查询")
+    parser.add_argument("--list", action="store_true", help="列出最新法律法规")
+    args = parser.parse_args()
+
     current = fetch_latest()
     if not current:
         print("No data from API")
+        return
+
+    if args.list:
+        print(format_all(current))
         return
 
     last = load_last()

@@ -1,0 +1,63 @@
+{
+  "tasks": {
+    "zhihu": {
+      "command": [
+        "python3",
+        "-m",
+        "hotsearch.tools.trends.hotsearch",
+        "zhihu",
+        "5"
+      ],
+      "display_name": "知乎热搜"
+    },
+    "weibo": {
+      "command": [
+        "python3",
+        "-m",
+        "hotsearch.tools.trends.hotsearch",
+        "weibo",
+        "5"
+      ],
+      "display_name": "微博热搜"
+    },
+    "eastmoney": {
+      "command": [
+        "python3",
+        "-m",
+        "hotsearch.tools.trends.hotsearch",
+        "eastmoney",
+        "5"
+      ],
+      "display_name": "东方财富热榜"
+    },
+    "ithome": {
+      "command": [
+        "python3",
+        "-m",
+        "hotsearch.tools.trends.hotsearch",
+        "ithome",
+        "5"
+      ],
+      "display_name": "IT之家热榜"
+    },
+    "ainews": {
+      "command": [
+        "python3",
+        "-m",
+        "hotsearch.tools.trends.ainews",
+        "decoder",
+        "5"
+      ],
+      "display_name": "AI 新闻"
+    },
+    "github": {
+      "command": [
+        "python3",
+        "-m",
+        "hotsearch.tools.trends.github_trending",
+        "5"
+      ],
+      "display_name": "GitHub Trending"
+    }
+  }
+}

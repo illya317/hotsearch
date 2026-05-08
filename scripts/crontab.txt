@@ -1,8 +1,8 @@
 */5 * * * * flock -xn /tmp/stargate.lock -c '/usr/local/qcloud/stargate/admin/start.sh > /dev/null 2>&1 &'
 
 # Anya 热搜监控（新版，相对路径）
-# 每小时检查新视频+新 release（偏移7分钟避开整点）
-7 * * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh push
+# 每小时检查 feeds（视频/release/法律，偏移7分钟避开整点）
+7 * * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh feeds
 
 # 早间热搜推送（8:00-9:00）
 7 8 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh zhihu
@@ -12,10 +12,6 @@
 47 8 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh ainews
 52 8 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh github
 57 8 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh status
-
-# 14:00 新法速递
-7 14 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh newlaw
-12 14 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh newlaw_shanghai
 
 # 15:30 东方财富（下午）
 37 15 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh eastmoney

@@ -1,0 +1,79 @@
+{
+  "zhihu": {
+    "tool": "trends.hotsearch",
+    "platform": "zhihu",
+    "limit": 5,
+    "aliases": ["知乎"],
+    "help": "知乎热搜"
+  },
+  "weibo": {
+    "tool": "trends.hotsearch",
+    "platform": "weibo",
+    "limit": 5,
+    "aliases": ["微博"],
+    "help": "微博热搜"
+  },
+  "xiaohongshu": {
+    "tool": "trends.hotsearch",
+    "platform": "xiaohongshu",
+    "limit": 5,
+    "aliases": ["xhs", "小红书"],
+    "help": "小红书"
+  },
+  "ithome": {
+    "tool": "trends.hotsearch",
+    "platform": "ithome",
+    "limit": 5,
+    "aliases": ["it"],
+    "help": "IT之家"
+  },
+  "douban": {
+    "tool": "trends.hotsearch",
+    "platform": "douban",
+    "limit": 5,
+    "aliases": ["mv", "豆瓣", "电影"],
+    "help": "豆瓣电影"
+  },
+  "eastmoney": {
+    "tool": "trends.hotsearch",
+    "platform": "eastmoney",
+    "limit": 5,
+    "aliases": ["fi", "财经", "东方财富"],
+    "help": "东方财富热榜"
+  },
+  "ainews": {
+    "tool": "trends.ainews",
+    "platform": "decoder",
+    "limit": 5,
+    "aliases": ["ai", "AI新闻"],
+    "help": "AI新闻 (THE DECODER)"
+  },
+  "github": {
+    "tool": "trends.github_trending",
+    "platform": null,
+    "limit": 5,
+    "aliases": ["gh"],
+    "help": "GitHub热门"
+  },
+  "hot": {
+    "type": "group",
+    "targets": ["zhihu", "weibo"],
+    "aliases": ["hot", "热搜", "热点"],
+    "help": "知乎+微博热搜"
+  },
+  "videos": {
+    "type": "videos",
+    "aliases": ["视频", "vd", "VD"],
+    "help": "Bilibili视频"
+  },
+  "push": {
+    "type": "push",
+    "aliases": ["push"],
+    "help": "追踪状态概览"
+  },
+  "help": {
+    "type": "help",
+    "aliases": ["帮助", "help"],
+    "help": "本菜单"
+  }
+}

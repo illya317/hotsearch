@@ -2,13 +2,18 @@
 
 独立可运行的脚本，`python3` 直接跑。大部分纯 stdout 输出，推送由 Service 层负责。
 
-## search/ — 数据检索
+## trends/ — 热榜与趋势（整点汇报）
 
 | 文件 | 用途 |
 |---|---|
 | `hotsearch.py` | 多平台热搜（知乎/微博/东方财富/IT之家/小红书/豆瓣/Bilibili） |
 | `ainews.py` | AI 新闻聚合（THE DECODER / HN / TechCrunch） |
-| `github-trending.py` | GitHub 30天热门仓库 |
+| `github_trending.py` | GitHub 30天热门仓库 |
+
+## feeds/ — 信息流追踪（有更新才推送）
+
+| 文件 | 用途 |
+|---|---|
 | `video_feeds.py` | Bilibili RSS 视频追踪（6个UP主） |
 | `release_feeds.py` | GitHub Release 追踪（OpenClaw/lark-cli） |
 | `newlaw.py` | 国家新法速递（flk.npc.gov.cn） |
@@ -23,3 +28,4 @@
 | `tavily_search.py` | Tavily 搜索 API |
 | `exa_search.py` | Exa AI 搜索 API |
 | `server-status.py` | 服务器状态检查（磁盘/内存/负载） |
+| `prune.py` | 清理过期缓存数据（feeds/trends/search） |

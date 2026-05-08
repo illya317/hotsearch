@@ -12,42 +12,30 @@ import sys
 import threading
 from pathlib import Path
 
-from hotsearch import PROJECT_ROOT
+from hotsearch import PROJECT_ROOT, CACHE_FEEDS_DIR, BOT_CONFIG
 
 import lark_oapi as lark
-from hotsearch.tools.search.video_feeds import get_videos
+from hotsearch.tools.feeds.video_feeds import get_videos
 
 FS_APP_ID = os.environ.get("FS_ANYA", "")
 FS_APP_SECRET = os.environ.get("FS_ANYAS", "")
 
-# --- Commands ---
-_COMMANDS_RAW = {
-    "hot": "hot", "热搜": "hot", "热点": "hot",
-    "fi": "eastmoney", "财经": "eastmoney", "东方财富": "eastmoney",
-    "it": "ithome",
-    "ai": "ainews", "AI新闻": "ainews",
-    "gh": "github",
-    "search": "search", "搜索": "search",
-    "xhs": "xiaohongshu", "小红书": "xiaohongshu",
-    "mv": "douban", "豆瓣": "douban", "电影": "douban",
-    "视频": "videos", "vd": "videos", "VD": "videos",
-    "知乎": "zhihu", "微博": "weibo",
-    "push": "push",
-    "帮助": "help", "help": "help",
-}
+# --- Load config ---
+_bot_cfg = json.loads(BOT_CONFIG.read_text())
+
+# Build case-insensitive commands map: alias -> cmd_id
 COMMANDS = {}
-for k, v in _COMMANDS_RAW.items():
-    COMMANDS[k] = v
-    COMMANDS[k.lower()] = v
-    COMMANDS[k.upper()] = v
-    COMMANDS[k.capitalize()] = v
+for cmd_id, cfg in _bot_cfg.items():
+    for alias in cfg.get("aliases", []):
+        COMMANDS[alias] = cmd_id
+        COMMANDS[alias.lower()] = cmd_id
+        COMMANDS[alias.upper()] = cmd_id
+        COMMANDS[alias.capitalize()] = cmd_id
 
-STATE_FILE = str(PROJECT_ROOT / "data" / "cache" / "state.json")
-NEWLAW_FILE = str(PROJECT_ROOT / "data" / "cache" / "newlaw_last.json")
-NEWLAW_SH_FILE = str(PROJECT_ROOT / "data" / "cache" / "newlaw_shanghai_last.json")
+NEWLAW_FILE = str(CACHE_FEEDS_DIR / "newlaw_last.json")
+NEWLAW_SH_FILE = str(CACHE_FEEDS_DIR / "newlaw_shanghai_last.json")
 
-TOOL_PREFIX = "hotsearch.tools.search"
-TOOL_SYS_PREFIX = "hotsearch.tools.system"
+TOOL_PREFIX = "hotsearch.tools"
 
 
 def _run_tool(*args) -> str:
@@ -57,16 +45,20 @@ def _run_tool(*args) -> str:
     return r.stdout.strip()
 
 
+def _run_hotsearch(cmd_id: str, limit: int) -> str:
+    cfg = _bot_cfg.get(cmd_id, {})
+    tool = cfg.get("tool")
+    platform = cfg.get("platform")
+    args = ["python3", "-m", f"{TOOL_PREFIX}.{tool}"]
+    if platform:
+        args.append(platform)
+    args.append(str(limit))
+    return _run_tool(*args)
+
+
 def strip_links(text):
     lines = text.split("\n")
     return "\n".join(l for l in lines if not re.match(r"^\s*https?://\S+\s*$", l.strip()))
-
-
-def load_state():
-    try:
-        return json.loads(open(STATE_FILE).read())
-    except Exception:
-        return {"videos": {}, "releases": {}}
 
 
 def load_newlaw_state(filepath):
@@ -77,12 +69,11 @@ def load_newlaw_state(filepath):
 
 
 def get_push_status():
-    state = load_state()
     lines = ["📊 追踪状态概览\n"]
 
     lines.append("📺 视频频道 (6个)")
-    videos_state = state.get("videos", {})
-    from hotsearch.tools.search.video_feeds import VIDEO_FEEDS, fetch_url, parse_latest_item
+    from hotsearch.tools.feeds.video_feeds import VIDEO_FEEDS, fetch_url, parse_latest_item, load_state as load_video_state
+    videos_state = load_video_state().get("videos", {})
     for name, url in VIDEO_FEEDS:
         check_url = url.replace("limit=3", "limit=1")
         data = fetch_url(check_url)
@@ -102,8 +93,8 @@ def get_push_status():
         lines.append(display)
 
     lines.append("\n\n📦 软件仓库 (2个)")
-    from hotsearch.tools.search.release_feeds import RELEASE_FEEDS, get_latest_release
-    releases_state = state.get("releases", {})
+    from hotsearch.tools.feeds.release_feeds import RELEASE_FEEDS, get_latest_release, load_state as load_release_state
+    releases_state = load_release_state().get("releases", {})
     for name, url in RELEASE_FEEDS.items():
         release = get_latest_release(url)
         stored_title = releases_state.get(name, "")
@@ -116,16 +107,24 @@ def get_push_status():
         lines.append(display)
 
     lines.append("\n\n📋 法规监控 (2个)")
-    newlaw_state = load_newlaw_state(NEWLAW_FILE)
-    if newlaw_state and newlaw_state.get("title"):
-        law_title = newlaw_state["title"]
+    def _first_law_title(state):
+        if not state:
+            return None
+        if isinstance(state, dict):
+            laws = state.get("laws", [])
+            return laws[0].get("title") if laws else None
+        if isinstance(state, list) and state:
+            return state[0].get("title")
+        return None
+
+    law_title = _first_law_title(load_newlaw_state(NEWLAW_FILE))
+    if law_title:
         lines.append(f"• 国家法律法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}")
     else:
         lines.append("• 国家法律法规: (无记录)")
 
-    newlaw_sh_state = load_newlaw_state(NEWLAW_SH_FILE)
-    if newlaw_sh_state and newlaw_sh_state.get("title"):
-        law_title = newlaw_sh_state["title"]
+    law_title = _first_law_title(load_newlaw_state(NEWLAW_SH_FILE))
+    if law_title:
         lines.append(f"• 上海地方法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}")
     else:
         lines.append("• 上海地方法规: (无记录)")
@@ -134,34 +133,16 @@ def get_push_status():
     return "\n".join(lines)
 
 
-# Command → (tool_path, platform, limit) or special handler
-HOTSEARCH_CMDS = {
-    "zhihu":       ("hotsearch", "zhihu", 5),
-    "weibo":       ("hotsearch", "weibo", 5),
-    "xiaohongshu": ("hotsearch", "xiaohongshu", 5),
-    "ithome":      ("hotsearch", "ithome", 5),
-    "douban":      ("hotsearch", "douban", 5),
-    "eastmoney":   ("hotsearch", "eastmoney", 5),
-    "ainews":      ("ainews", "decoder", 5),
-    "github":      ("github_trending", None, 5),
-}
-
-
 def get_help():
-    return """🤖 Anya 支持的命令:
-
-hot — 知乎+微博热搜
-fi — 东方财富热榜
-it — IT之家
-ai — AI新闻 (THE DECODER)
-gh — GitHub热门
-xhs — 小红书
-mv — 豆瓣电影
-vd — Bilibili视频
-push — 追踪状态概览
-help — 本菜单
-
-💡 提示: 可在命令后加数字指定条数，如 "fi 10" """
+    lines = ["🤖 Anya 支持的命令:\n"]
+    for cmd_id, cfg in _bot_cfg.items():
+        help_text = cfg.get("help", "")
+        aliases = cfg.get("aliases", [])
+        primary = aliases[0] if aliases else cmd_id
+        lines.append(f"{primary} — {help_text}")
+    lines.append("")
+    lines.append("💡 提示: 可在命令后加数字指定条数，如 \"fi 10\"")
+    return "\n".join(lines)
 
 
 def handle_message(text):
@@ -174,31 +155,28 @@ def handle_message(text):
     except ValueError:
         limit = 5
 
-    cmd = COMMANDS.get(base_cmd)
+    cmd_id = COMMANDS.get(base_cmd)
+    if not cmd_id:
+        return "未知命令，输入 help 查看可用命令"
 
-    if cmd == "help":
+    cfg = _bot_cfg.get(cmd_id, {})
+    cmd_type = cfg.get("type")
+
+    if cmd_type == "help":
         return get_help()
-    elif cmd == "videos":
+    elif cmd_type == "videos":
         return get_videos()
-    elif cmd == "push":
+    elif cmd_type == "push":
         return get_push_status()
-    elif cmd == "hot":
-        r1 = _run_tool("python3", "-m", f"{TOOL_PREFIX}.hotsearch", "zhihu", str(limit))
-        r2 = _run_tool("python3", "-m", f"{TOOL_PREFIX}.hotsearch", "weibo", str(limit))
-        return f"{r1}\n\n{r2}"
-    elif cmd in HOTSEARCH_CMDS:
-        tool, platform, _ = HOTSEARCH_CMDS[cmd]
-        args = ["python3", "-m", f"{TOOL_PREFIX}.{tool}"]
-        if platform:
-            args.append(platform)
-        args.append(str(limit))
-        return _run_tool(*args)
-    elif cmd == "search":
-        query = " ".join(parts[1:]) if len(parts) > 1 else ""
-        if not query:
-            return "请输入搜索内容，例如: search 什么是量子计算"
-        return _run_tool("python3", "-m", f"{TOOL_SYS_PREFIX}.tavily_search",
-                         "--query", query, "--max-results", str(limit), "--format", "md")
+    elif cmd_type == "group":
+        results = []
+        for target_id in cfg.get("targets", []):
+            target_cfg = _bot_cfg.get(target_id, {})
+            if "tool" in target_cfg:
+                results.append(_run_hotsearch(target_id, limit))
+        return "\n\n".join(results)
+    elif "tool" in cfg:
+        return _run_hotsearch(cmd_id, limit)
     else:
         return "未知命令，输入 help 查看可用命令"
 
