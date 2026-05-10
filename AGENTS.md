@@ -13,10 +13,12 @@ hotsearch/
 │   ├── cron.json                    # 定时任务调度
 │   ├── hotsearch.json               # 热榜平台定义（7大平台）
 │   ├── trends.json                  # 趋势任务显示名
+│   ├── preference.json              # 评分参数
+│   ├── search_sources.json          # 搜索域名白/黑名单
 │   ├── model_config.yaml            # LLM 提供商 + 模型参数 + 降级链
 │   ├── logging_config.yaml          # Python logging 配置
 │   └── prompts/                     # Jinja2 模板 + Markdown prompt
-│       ├── main.j2                  # Agent 主模板
+│       ├── summary.j2               # SummaryAgent 输出模板
 │       ├── summary.md               # 角色描述
 │       ├── preference.md            # 用户内容偏好
 │       ├── tag.j2                   # 标签规则更新模板
@@ -57,7 +59,6 @@ hotsearch/
 │   │   └── bot.py                  # 飞书 WebSocket 交互机器人
 │   │
 │   ├── agents/                      # 智能体层：AI 增强处理
-│   │   ├── main.py                 # 上下文生成入口（AGENTS.md 格式）
 │   │   ├── content.py              # ContentAgent：分类 + 打分（TagEngine + ScoringService）
 │   │   └── summary.py              # SummaryAgent：搜索增强 + 模板渲染 + 飞书推送
 │   │
@@ -80,12 +81,18 @@ hotsearch/
 │   ├── cron-task.sh                 # Cron 三步管道分发器
 │   └── generate-crontab.py          # 从 cron.json 动态生成 crontab
 │
-└── data/cache/                      # 运行时缓存（gitignore）
-    ├── api/                         # HTTP API 文件缓存（24h TTL）
-    ├── trends/                      # 趋势原始数据快照
-    ├── feeds/                       # 订阅状态 + 快照
-    ├── cron/                        # 打分 + 格式化后的推送数据
-    └── search/                      # 搜索结果 MD
+├── data/                            # 运行时数据（gitignore）
+│   ├── cache/                       # 缓存
+│   │   ├── api/                     # HTTP API 文件缓存（24h TTL）
+│   │   ├── trends/                  # 趋势原始数据快照
+│   │   ├── feeds/                   # 订阅状态 + 快照
+│   │   ├── cron/                    # 打分中间数据
+│   │   └── search/                  # 搜索结果 MD
+│   └── outputs/                     # 最终格式化输出（飞书推送内容）
+│
+└── logs/                            # 日志
+    ├── cron.log                     # cron-task.sh 管道日志
+    └── hotsearch.log                # Python logging 日志
 ```
 
 ## 分层架构
@@ -118,6 +125,7 @@ cron 触发 → scripts/cron-task.sh zhihu
           → 加载 scored 数据
           → 高分项(≥70) → SearchService.enrich() → Tavily + Exa
           → Jinja2 summary.j2 渲染
+          → 保存 data/outputs/zhihu_final_*.md
           → send_to_feishu()
 ```
 
@@ -152,7 +160,7 @@ GET /trends?sources=hotsearch,github&tag=AI
 ./scripts/run.sh src/hotsearch/agents/summary.py --source zhihu --send
 ```
 
-> `run.sh` 用于本地测试（stdout），`cron-task.sh` 用于 cron 调度（日志写入文件）。
+> `run.sh` 用于本地测试（stdout），`cron-task.sh` 用于 cron 调度（日志写入 `logs/cron.log`）。
 
 ## scripts/cron-task.sh
 
@@ -167,21 +175,6 @@ Cron 任务分发器，读取 `config/cron.json`，执行三步管道。
 ```bash
 ./scripts/cron-task.sh zhihu
 ```
-
-## agents/main.py
-
-输出 AGENTS.md + 24h 数据上下文，供外部 AI 消费。
-
-```bash
-./scripts/run.sh src/hotsearch/agents/main.py
-./scripts/run.sh src/hotsearch/agents/main.py --no-prompts
-```
-
-| 参数 | 说明 |
-|------|------|
-| `--no-prompts` | 只输出数据，不输出 prompt |
-| `--api-base` | API 地址，默认 `http://localhost:3000` |
-| `--period` | feeds 时间范围，默认 `12h` |
 
 ## routers/api.py
 
@@ -236,15 +229,6 @@ python3 -m hotsearch.routers.api
 ## Tag 维护
 
 ```bash
-# 查看所有 uncertain 条目
-./scripts/run.sh src/hotsearch/agents/content.py --check
-
-# LLM 建议新关键词
-./scripts/run.sh src/hotsearch/agents/content.py --update
-
-# 应用建议到 tools/tag.py
-./scripts/run.sh src/hotsearch/agents/content.py --apply
-
 # 手动分类标题
 ./scripts/run.sh src/hotsearch/agents/content.py --titles "标题1" "标题2"
 ```
@@ -301,9 +285,10 @@ python3 -m hotsearch.services.bot &                      # WebSocket Bot
 - 正确示范：`tools/trends/__init__.py` 的自发现注册（`_TOOLS` dict）
 - 反例：在 `tools/trends/` 下放 `trends_config.json`
 
-## 3. 输出文件统一在 `data/cache/`
+## 3. 输出文件统一在 `data/`
 
-- 所有运行时数据统一写入 `data/cache/`
+- 运行时缓存 → `data/cache/`（api/ trends/ feeds/ cron/ search/）
+- 最终格式化输出 → `data/outputs/`
 - 禁止在其他位置散落输出文件，`data/` 已在 `.gitignore`
 
 ## 4. 分层架构：agent → service → tools
