@@ -117,7 +117,7 @@ class SummaryAgent:
         ts = now.strftime("%Y%m%d_%H%M")
         time_str = now.strftime("%Y-%m-%d %H:%M")
         hour = now.hour
-        period = "早" if 5 <= hour < 12 else ("晚" if 17 <= hour < 23 else "报")
+        period = "早" if 5 <= hour < 12 else ("晚" if 17 <= hour < 23 else "快")
 
         # Combine all items with source label
         all_items = []
