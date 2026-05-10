@@ -136,10 +136,8 @@ TAG_RULES: dict[str, list[str]] = {
 
 def classify(title: str) -> list[str]:
     """根据标题匹配标签。未匹配到任何标签时返回 ['uncertain']。"""
-    matched: list[str] = []
-    for tag, keywords in TAG_RULES.items():
-        for kw in keywords:
-            if kw in title:
-                matched.append(tag)
-                break
-    return matched if matched else ["uncertain"]
+    from hotsearch.tools.tag_db import classify as db_classify
+
+    matches = db_classify(title)
+    tags = list(set(m["tag_name"] for m in matches))
+    return tags if tags else ["uncertain"]

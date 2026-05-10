@@ -45,13 +45,13 @@ class TagEngine:
                 title = item.get("title", "")
                 if not title:
                     continue
-                # First try LLM classification (Minimax)
-                tags = self._llm_classify(title)
-                # Fallback to keyword if LLM fails
-                if not tags or "uncertain" in tags:
-                    tags = classify(title)
-                    if "uncertain" in tags:
-                        uncertain.append(title)
+                # Keyword-first: get all matching tags
+                tags = classify(title)
+                # LLM fallback for uncertain items
+                if "uncertain" in tags:
+                    tags = self._llm_classify(title)
+                if "uncertain" in tags:
+                    uncertain.append(title)
                 item["tags"] = tags
         result["uncertain_count"] = len(uncertain)
         return result
@@ -77,9 +77,11 @@ class TagEngine:
             return ["uncertain"]
 
     def suggest_updates(self, uncertain_titles: list[str]) -> dict | None:
-        """Ask LLM to suggest TAG_RULES keyword additions."""
+        """Ask LLM to suggest keyword additions and write them to tag DB."""
         if not uncertain_titles:
             return None
+        from hotsearch.tools.tag_db import add_keyword
+
         prompt = _jinja_env.get_template("tag").render(
             rules=json.dumps(TAG_RULES, ensure_ascii=False, indent=2),
             titles=uncertain_titles,
@@ -95,7 +97,16 @@ class TagEngine:
                 text = text.split("```json")[1].split("```")[0]
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0]
-            return json.loads(text.strip())
+            result = json.loads(text.strip())
+
+            for tag_name, keywords in result.get("updates", {}).items():
+                for kw in keywords:
+                    add_keyword(tag_name, kw)
+            for tag_name, keywords in result.get("new_tags", {}).items():
+                for kw in keywords:
+                    add_keyword(tag_name, kw)
+
+            return result
         except Exception as e:
             _log.error("suggest_updates failed: %s", e)
             return None
