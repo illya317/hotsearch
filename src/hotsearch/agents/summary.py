@@ -24,12 +24,16 @@ from hotsearch.tools.system.feishu_send import send_to_feishu
 _log = get_logger("summary")
 
 
-def _detail_threshold() -> int:
+def _load_scoring_rules() -> dict:
     import json as _json
-    path = CONFIG_DIR / "preference.json"
+    path = CONFIG_DIR / "scoring_rules.json"
     if path.exists():
-        return _json.loads(path.read_text(encoding="utf-8")).get("detail_threshold", 80)
-    return 80
+        return _json.loads(path.read_text(encoding="utf-8"))
+    return {}
+
+
+def _detail_threshold() -> int:
+    return _load_scoring_rules().get("detail_threshold", 70)
 
 
 class SummaryAgent:
@@ -41,6 +45,7 @@ class SummaryAgent:
         self._jinja = jinja2.Environment(
             loader=jinja2.FileSystemLoader(str(PROJECT_ROOT / "config" / "prompts"))
         )
+        self._scoring_rules = _load_scoring_rules()
 
     def run(self, source: str, send: bool = False) -> str:
         if source == "all":
@@ -133,11 +138,14 @@ class SummaryAgent:
                 "avg": sum(scores) // len(scores) if scores else 0,
             })
 
-        # Global top-N curation: sort all items by score, top 5 deep, next 10 brief
+        # Global top-N curation: sort all items by score
         all_items.sort(key=lambda i: i.get("score", 0), reverse=True)
+        top_deep = self._scoring_rules.get("top_deep_count", 5)
+        top_brief = self._scoring_rules.get("top_brief_count", 10)
+        top_total = top_deep + top_brief
 
-        # Enrich high-score candidates among top 15
-        for item in all_items[:15]:
+        # Enrich high-score candidates among top N
+        for item in all_items[:top_total]:
             if item.get("score", 0) >= _detail_threshold():
                 try:
                     self.searcher.enrich_item(item)
@@ -147,8 +155,8 @@ class SummaryAgent:
                 except Exception as e:
                     _log.warning("enrich failed '%s': %s", item.get("title", ""), e)
 
-        deep_items = all_items[:5]
-        brief_items = all_items[5:15]
+        deep_items = all_items[:top_deep]
+        brief_items = all_items[top_deep:top_total]
 
         total = len(deep_items) + len(brief_items)
         discarded = max(0, sum(
