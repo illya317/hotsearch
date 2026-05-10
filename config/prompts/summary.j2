@@ -1,0 +1,16 @@
+# {{ name }} {{ time }}
+
+## 🔥 深度关注（{{ deep_items|length }}条）
+{% for item in deep_items %}
+- {{ item.title }}  [{{ item.score }}分]
+  {% if item.search_context %}🔍 {{ item.search_context }}{% endif %}
+  {{ item.url }}
+{% endfor %}
+
+## 📋 常规浏览（{{ regular_items|length }}条）
+{% for item in regular_items %}
+- {{ item.title }}  [{{ item.score }}分]
+{% endfor %}
+
+## 📊 统计
+本次采集 {{ total }} 条，推送 {{ sent }} 条，丢弃 {{ discarded }} 条

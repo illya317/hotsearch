@@ -1,0 +1,17 @@
+{
+  "trusted_domains": [
+    "github.com",
+    "arxiv.org",
+    "news.cn",
+    "people.com.cn",
+    "thepaper.cn",
+    "36kr.com",
+    "jiqizhixin.com",
+    "infoq.cn"
+  ],
+  "blocked_domains": [
+    "zhihu.com",
+    "weibo.com",
+    "douyin.com"
+  ]
+}

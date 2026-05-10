@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Check new videos/releases/laws and push notifications via Feishu."""
+"""Feeds raw data collection: fetch all sources → normalize → save StandardResult."""
 
+import argparse
+import json
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
 
+from hotsearch import CACHE_FEEDS_DIR
 from hotsearch.tools.feeds import get_tools
-from hotsearch.tools.system.feishu_send import send_to_feishu
 
 
 class FeedsService:
@@ -44,16 +49,44 @@ class FeedsService:
                 pass
         return notifications
 
+    @staticmethod
+    def load_latest() -> dict | None:
+        """Load the latest feeds StandardResult from cache."""
+        candidates = []
+        for path in CACHE_FEEDS_DIR.glob("feeds_*.json"):
+            try:
+                ts = float(path.stem.split("_", 1)[1])
+                candidates.append((ts, path))
+            except Exception:
+                continue
+        if not candidates:
+            return None
+        latest = sorted(candidates, reverse=True)[0][1]
+        return json.loads(latest.read_text(encoding="utf-8"))
+
+
+def _save(result: dict) -> Path:
+    CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
+    now = datetime.now()
+    ts = now.strftime("%Y%m%d_%H%M")
+    path = CACHE_FEEDS_DIR / f"feeds_{ts}.json"
+    payload = {
+        **result,
+        "time": now.strftime("%Y-%m-%d %H:%M"),
+        "timestamp": time.time(),
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
 
 def main():
+    ap = argparse.ArgumentParser(description="Feeds raw data collection")
+    ap.parse_args()
+
     service = FeedsService()
-    notifications = service.check_new()
-    if notifications:
-        msg = "🔔 新内容更新!\n\n" + "\n\n".join(notifications)
-        print(msg)
-        send_to_feishu(msg)
-    else:
-        print("No new content")
+    result = service.collect()
+    path = _save(result)
+    print(path)
 
 
 if __name__ == "__main__":

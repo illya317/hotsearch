@@ -1,237 +1,267 @@
 # Anya - 热搜 & 资讯 Bot
 
-Bot + API 服务，定时推送热榜/资讯，支持交互式查询。
+Bot + API 服务，定时推送热榜/资讯，支持飞书交互式查询。覆盖知乎、微博、小红书、B站、IT之家、豆瓣、东方财富热榜，AI 新闻 RSS，GitHub Trending，B站视频，开源发布，法律法规监控。
 
-## 目录
+---
+
+# 一、项目结构
 
 ```
-.
-├── routers/            -- HTTP API 网关（端口 3000）
-│   └── api.py          -- HTTP 入口
-├── services/           -- 服务层（独立运行，直接调 tools）
-│   ├── bot.py          -- 交互 Bot
-│   ├── trends.py       -- 定时热榜推送
-│   └── feeds.py        -- 内容更新追踪
-├── tools/              -- 工具层
-│   ├── trends/         -- 热榜抓取
-│   ├── feeds/          -- 内容追踪
-│   └── system/         -- 发送 / 搜索 / TTS / 监控
-├── scripts/            -- 启动脚本
-│   ├── run.sh          -- 运行 Python 脚本
-│   ├── cron-task.sh    -- Cron 任务分发
-│   └── crontab.txt     -- 定时任务配置
-├── config/             -- 配置文件（改行为不改代码）
-│   ├── hotsearch.json  -- 平台定义
-│   ├── bot.json        -- Bot 命令
-│   ├── trends.json     -- 定时任务
-│   ├── feishu_voice.json -- TTS 音色
-│   └── cron.json       -- Cron 分发配置
-├── agents/             -- AI 上下文生成
-│   ├── main.py         -- Agent 入口，输出上下文
-│   ├── assistant.py    -- Tag 规则维护助手（默认 minimax）
-│   └── prompts/        -- AI system prompt 模板
-└── data/
-    ├── cache/          -- 运行时数据
-    │   ├── api/        -- API 缓存
-    │   ├── trends/     -- 热榜缓存
-    │   ├── feeds/      -- 追踪状态
-    │   └── search/     -- 搜索缓存
-    └── prompts/        -- 运行时生成的 prompts
+hotsearch/
+├── config/                          # 静态配置（JSON/YAML）
+│   ├── bot.json                     # 飞书机器人命令映射
+│   ├── cron.json                    # 定时任务调度
+│   ├── hotsearch.json               # 热榜平台定义（7大平台）
+│   ├── trends.json                  # 趋势任务显示名
+│   ├── model_config.yaml            # LLM 提供商 + 模型参数 + 降级链
+│   ├── logging_config.yaml          # Python logging 配置
+│   └── prompts/                     # Jinja2 模板 + Markdown prompt
+│       ├── main.j2                  # Agent 主模板
+│       ├── summary.md               # 角色描述
+│       ├── preference.md            # 用户内容偏好
+│       ├── tag.j2                   # 标签规则更新模板
+│       └── tag_classify.j2          # LLM 分类模板
+│
+├── src/hotsearch/                   # 主包
+│   ├── __init__.py                  # 项目根解析、环境变量、路径常量
+│   ├── schemas.py                   # 数据模型（dataclass + format_text）
+│   │
+│   ├── tools/                       # 适配器层：对接外部数据源
+│   │   ├── base.py                  # ToolAdapter 抽象基类 + StandardItem/StandardResult
+│   │   ├── tag.py                   # TAG_RULES 10 类关键词 + classify()
+│   │   ├── logger.py                # 日志初始化器
+│   │   ├── trends/                  # 趋势类适配器（pkgutil 自发现）
+│   │   │   ├── base.py             # TrendAdapter 基类
+│   │   │   ├── hotsearch.py        # api.rebang.today → 7 大平台
+│   │   │   ├── ainews.py           # RSS → AI 新闻（3 源）
+│   │   │   └── github_trending.py  # GitHub Search API → 30 天热门仓库
+│   │   ├── feeds/                   # 订阅类适配器（pkgutil 自发现）
+│   │   │   ├── base.py             # FeedAdapter 基类
+│   │   │   ├── video_feeds.py      # RSSHub → B 站 6 频道
+│   │   │   ├── release_feeds.py    # Atom → GitHub Release
+│   │   │   ├── newlaw.py           # NPC API → 国家法律法规
+│   │   │   └── newlaw_shanghai.py  # REST API → 上海地方法规
+│   │   └── system/                  # 系统工具
+│   │       ├── feishu_send.py       # 飞书消息发送（token 重试）
+│   │       ├── feishu_voice.py      # TTS 语音发送
+│   │       ├── tavily_search.py     # Tavily 搜索
+│   │       ├── exa_search.py        # Exa 搜索
+│   │       ├── server-status.py     # 服务器资源报告
+│   │       └── prune.py            # 缓存清理
+│   │
+│   ├── services/                    # 业务逻辑层：编排适配器
+│   │   ├── trends.py               # TrendsService：并行采集 → 标准化 → 聚合 + load_latest()
+│   │   ├── feeds.py                # FeedsService：采集 + 增量检测 + load_latest()
+│   │   ├── scoring.py              # ScoringService：标签 → 偏好权重分
+│   │   ├── search.py               # SearchService：Tavily + Exa 统一搜索
+│   │   └── bot.py                  # 飞书 WebSocket 交互机器人
+│   │
+│   ├── agents/                      # 智能体层：AI 增强处理
+│   │   ├── main.py                 # 上下文生成入口（AGENTS.md 格式）
+│   │   ├── content.py              # ContentAgent：分类 + 打分（TagEngine + ScoringService）
+│   │   └── summary.py              # SummaryAgent：搜索增强 + 模板渲染 + 飞书推送
+│   │
+│   ├── llms/                        # LLM 客户端抽象层
+│   │   ├── base.py                 # LLMClient 抽象基类
+│   │   ├── minimax.py              # MinimaxClient
+│   │   ├── kimi.py                 # KimiClient
+│   │   ├── deepseek.py             # DeepseekClient
+│   │   ├── fallback.py             # FallbackClient 降级链
+│   │   └── config.py              # 模型参数解析
+│   │
+│   ├── routers/
+│   │   └── api.py                  # HTTP API（port 3000）双层缓存 L1 内存 + L2 文件
+│   │
+│   └── config/
+│       └── __init__.py             # 配置加载器
+│
+├── scripts/                         # Shell 入口
+│   ├── run.sh                       # PYTHONPATH 启动器
+│   ├── cron-task.sh                 # Cron 三步管道分发器
+│   └── generate-crontab.py          # 从 cron.json 动态生成 crontab
+│
+└── data/cache/                      # 运行时缓存（gitignore）
+    ├── api/                         # HTTP API 文件缓存（24h TTL）
+    ├── trends/                      # 趋势原始数据快照
+    ├── feeds/                       # 订阅状态 + 快照
+    ├── cron/                        # 打分 + 格式化后的推送数据
+    └── search/                      # 搜索结果 MD
 ```
 
-## 用法
+## 分层架构
 
-### scripts/run.sh
+```
+agent/  ──→  services/  ──→  tools/
+智能体层      业务逻辑层      适配器层
+```
+
+严格上层调下层，禁止反向。同级频繁互调说明职责划分有问题，应拆分或合并。
+
+## 核心数据流
+
+### Cron 管道（三步）
+
+```
+cron 触发 → scripts/cron-task.sh zhihu
+
+  Step 1: services/trends.py zhihu
+          → adapter.fetch() → normalize() → StandardResult
+          → 保存 data/cache/trends/zhihu_YYYYMMDD_HHMM.json
+
+  Step 2: agents/content.py --source zhihu
+          → TrendsService.load_latest("zhihu")
+          → classify() 关键词匹配 → LLM 兜底
+          → ScoringService.score() 权重打分
+          → 保存 data/cache/cron/zhihu_scored_*.json
+
+  Step 3: agents/summary.py --source zhihu --send
+          → 加载 scored 数据
+          → 高分项(≥70) → SearchService.enrich() → Tavily + Exa
+          → Jinja2 summary.j2 渲染
+          → send_to_feishu()
+```
+
+### 飞书交互查询
+
+```
+用户 "hot 5" → bot.py WebSocket
+  → bot.json 命令映射 → subprocess adapter --json
+  → schemas 解析 + format_text() → 飞书回复
+```
+
+### HTTP API
+
+```
+GET /trends?sources=hotsearch,github&tag=AI
+  → L1 内存缓存 → L2 文件缓存
+  → Miss: TrendsService.collect() → ThreadPoolExecutor 并行
+  → 24h TTL，?refresh=1 强制刷新
+```
+
+---
+
+# 二、使用指南
+
+## scripts/run.sh
 
 运行任意 Python 脚本，自动设置 `PYTHONPATH`。
 
-| 参数 | 说明 |
-|------|------|
-| `<script>` | Python 脚本路径（相对项目根目录） |
-| `[args...]` | 该脚本接受的参数 |
-
 ```bash
 ./scripts/run.sh src/hotsearch/services/trends.py zhihu
+./scripts/run.sh src/hotsearch/agents/content.py --source zhihu
+./scripts/run.sh src/hotsearch/agents/summary.py --source zhihu --send
 ```
 
-> `run.sh` 用于本地测试（stdout 直接输出），`cron-task.sh` 用于 cron 调度（日志统一写入文件）。
+> `run.sh` 用于本地测试（stdout），`cron-task.sh` 用于 cron 调度（日志写入文件）。
 
-### scripts/cron-task.sh
+## scripts/cron-task.sh
 
-Cron 任务分发器，读取 `config/cron.json` 调度，底层调用 `run.sh` 执行。
+Cron 任务分发器，读取 `config/cron.json`，执行三步管道。
 
 | 参数 | 说明 |
 |------|------|
 | `feeds` | 运行 feeds 检查（视频 / Release / 法规） |
 | `status` | 运行服务器状态检查 |
-| `<trend>` | Trends 任务名（由 `config/trends.json` 定义） |
-| `--no-send` | 只写入 `data/cache/trends/`，不推送到飞书 |
+| `zhihu` `weibo` `eastmoney` `ithome` `ainews` `github` | 趋势任务名 |
 
 ```bash
 ./scripts/cron-task.sh zhihu
-./scripts/cron-task.sh zhihu --no-send
 ```
 
-日志统一输出到 `data/cache/cron/cron.log`。
+## agents/main.py
 
-### agents/main.py
-
-Agent 入口。自动输出 `AGENTS.md` + 24h 数据上下文，供外部 AI 消费。
-
-Prompt 渲染使用 **Jinja2**，模板放在 `agents/prompts/`：
-- `main.md` — 主模板（串联 summary + preference + 数据 + search/prune）
-- `tag.md` / `tag_classify.md` — tag 维护助手模板
-- `summary.md` / `preference.md` / `search.md` / `prune.md` — 静态片段
-
-| 参数 | 说明 |
-|------|------|
-| `--no-prompts` | 不输出 prompt 文件，只输出数据 |
-| `--api-base` | API 地址，默认 `http://localhost:3000` |
+输出 AGENTS.md + 24h 数据上下文，供外部 AI 消费。
 
 ```bash
 ./scripts/run.sh src/hotsearch/agents/main.py
+./scripts/run.sh src/hotsearch/agents/main.py --no-prompts
 ```
 
-### routers/api.py
+| 参数 | 说明 |
+|------|------|
+| `--no-prompts` | 只输出数据，不输出 prompt |
+| `--api-base` | API 地址，默认 `http://localhost:3000` |
+| `--period` | feeds 时间范围，默认 `12h` |
 
-HTTP API 网关，端口 3000，无命令行参数。
+## routers/api.py
 
-| 查询参数 | 说明 |
-|----------|------|
-| `?refresh=1` | 强制刷新缓存，重新抓取 |
-| `/daily?period=24h` | feeds 更新汇总，支持任意 `Nh` 或 `Nd` |
+HTTP API 网关，端口 3000。
 
-缓存默认 24h 过期，过期后自动重新抓取。
+| 端点 | 说明 |
+|------|------|
+| `/hotsearch?platform=zhihu&limit=5` | 热榜查询 |
+| `/ainews?source=all&limit=5` | AI 新闻 |
+| `/github-trending?limit=10` | GitHub Trending |
+| `/trends?sources=hotsearch,github&tag=AI` | 统一趋势接口 |
+| `/feeds?sources=videos,releases` | 统一 feeds 接口 |
+| `/daily?period=24h` | 24h 更新汇总 |
+| `/health` | 健康检查 |
+
+所有端点支持 `?refresh=1` 强制刷新缓存。
 
 ```bash
-python3 -m hotsearch.services.api
+python3 -m hotsearch.routers.api
 ```
 
-### tools/system/tavily_search.py
+## 搜索工具
 
-Tavily 搜索 API。
+### Tavily 搜索
+
+```bash
+./scripts/run.sh src/hotsearch/tools/system/tavily_search.py --query "关键词" --save --format md
+```
 
 | 参数 | 说明 |
 |------|------|
 | `--query` (required) | 搜索关键词 |
-| `--max-results` | 结果数量，默认 5，最大 10 |
-| `--include-answer` | 包含 AI 总结答案 |
+| `--max-results` | 结果数，默认 5，最大 10 |
 | `--search-depth` | `basic` / `advanced` |
 | `--format` | `raw` / `brave` / `md` |
-| `--save` | 保存原始 JSON 到 `data/cache/search/` |
+| `--save` | 保存到 `data/cache/search/` |
+
+### Exa 搜索
 
 ```bash
-./scripts/run.sh src/hotsearch/tools/system/tavily_search.py --query "xxx" --save
+./scripts/run.sh src/hotsearch/tools/system/exa_search.py --query "关键词" --save --format md
 ```
-
-### tools/system/prune.py
-
-清理过期缓存数据。
 
 | 参数 | 说明 |
 |------|------|
-| `--days` | 过期阈值（天），默认 7 |
-| `--targets` | `feeds,trends,search`，逗号分隔 |
-| `--dry-run` | 只打印不删除 |
+| `--query` (required) | 搜索关键词 |
+| `--num-results` | 结果数，默认 5，最大 20 |
+| `--type` | `auto` / `fast` / `deep` |
+| `--format` | `raw` / `brave` / `md` |
+| `--save` | 保存到 `data/cache/search/` |
+
+## Tag 维护
+
+```bash
+# 查看所有 uncertain 条目
+./scripts/run.sh src/hotsearch/agents/content.py --check
+
+# LLM 建议新关键词
+./scripts/run.sh src/hotsearch/agents/content.py --update
+
+# 应用建议到 tools/tag.py
+./scripts/run.sh src/hotsearch/agents/content.py --apply
+
+# 手动分类标题
+./scripts/run.sh src/hotsearch/agents/content.py --titles "标题1" "标题2"
+```
+
+## 缓存清理
 
 ```bash
 ./scripts/run.sh src/hotsearch/tools/system/prune.py --dry-run
 ./scripts/run.sh src/hotsearch/tools/system/prune.py --days 3 --targets trends,search
 ```
 
-### tools/system/exa_search.py
+## 新增数据源
 
-Exa AI 搜索 API。
-
-| 参数 | 说明 |
-|------|------|
-| `--query` (required) | 搜索关键词 |
-| `--num-results` | 结果数量，默认 5，最大 20 |
-| `--type` | `auto` / `fast` / `instant` / `deep-lite` / `deep` / `deep-reasoning` |
-| `--text-max-chars` | 获取全文最大字符数，0 = 关闭 |
-| `--highlights` | 包含高亮片段 |
-| `--format` | `raw` / `brave` / `md` |
-| `--save` | 保存原始 JSON 到 `data/cache/search/` |
-
-```bash
-./scripts/run.sh src/hotsearch/tools/system/exa_search.py --query "xxx" --save
-```
-
-## 新增数据源约定
-
-### 1. 标签（tags）
-
-每个 Adapter 必须定义 `tags`：
+在 `tools/trends/` 或 `tools/feeds/` 下新建 adapter 文件，继承基类实现 `fetch()` + `normalize()`，自发现机制自动注册。
 
 ```python
-class ExampleAdapter(TrendAdapter):  # 或 FeedAdapter
-    name = "example"
-    tags = ["tech", "AI"]  # 至少 1 个标签
-```
-
-**trends 标签建议**：按领域分类
-- `["social"]` — 社交媒体（微博、知乎、小红书）
-- `["hot"]` — 综合热榜
-- `["tech"]` — 科技/数码/开源
-- `["AI"]` — AI 新闻
-- `["finance"]` — 财经/金融
-- `["entertainment"]` — 影视/娱乐
-
-**feeds 标签建议**：按内容类型
-- `["video"]` — 视频更新
-- `["release"]` — 软件发布
-- `["law"]` — 法律法规
-- `["news"]` — 新闻资讯
-
-**内容自动打标签**：`tools/tag.py` 维护了一套关键词规则，Adapter 可以在 `fetch()` 中给每条 item 的 `title` 自动分类：
-
-```python
-from hotsearch.tools.tag import classify
-
-item["tags"] = classify(item["title"])  # 返回如 ["AI/科技"] 或 ["uncertain"]
-```
-
-规则文件 `tools/tag.py` 需要人工维护关键词列表，不属于任何分类的默认打上 `uncertain`。
-
-### 2. trends 输出格式
-
-`fetch()` 返回 `dict`，CLI `--json` 统一包装为：
-
-```json
-{
-  "adapter": "github",
-  "tags": ["tech", "opensource"],
-  "fetched_at": "2026-05-09T12:00:00+08:00",
-  "data": {
-    "items": [...]
-  }
-}
-```
-
-- `adapter` — Adapter 的 `name`
-- `tags` — Adapter 的 `tags`
-- `fetched_at` — 抓取时间（ISO 8601）
-- `data` — `fetch()` 返回的原始 dict
-
-### 3. feeds 输出格式
-
-`fetch()` 返回 `dict`，结构自由，但建议包含：
-
-```json
-{
-  "items": [...],
-  "count": 10,
-  "fetched_at": "2026-05-09T12:00:00+08:00"
-}
-```
-
-支持 `check_new()` 的 Feed，返回 `list[str]`（格式化好的通知文本）。
-
-### 4. 最小实现模板
-
-**trends：**
-
-```python
+# tools/trends/example.py
 from .base import TrendAdapter
 
 class ExampleAdapter(TrendAdapter):
@@ -240,29 +270,63 @@ class ExampleAdapter(TrendAdapter):
 
     def fetch(self, query: str = "", **kwargs) -> dict:
         return {"items": [...]}
+
+    def normalize(self, raw: dict) -> dict:
+        return {"source_name": "example", "items": [...], "meta": None, "output": None}
 ```
 
-**feeds：**
-
-```python
-from .base import FeedAdapter
-
-class ExampleAdapter(FeedAdapter):
-    name = "example"
-    tags = ["news"]
-
-    def fetch(self, query: str = "", **kwargs) -> dict:
-        return {"items": [...], "count": len([...])}
-
-    def check_new(self) -> list[str]:
-        return ["📰 Example: 新标题"]
-```
+然后在 `config/cron.json` 加调度项即可，不改任何 agent/service 代码。
 
 ## 部署
 
 ```bash
-crontab scripts/crontab.txt       # 安装定时任务
-cd src/hotsearch
-python3 -m routers.api &          # HTTP API，端口 3000
-python3 bot.py &                  # WebSocket Bot
+crontab <(python3 scripts/generate-crontab.py --print)  # 安装定时任务
+python3 -m hotsearch.routers.api &                       # HTTP API 端口 3000
+python3 -m hotsearch.services.bot &                      # WebSocket Bot
 ```
+
+---
+
+# 三、项目要求
+
+## 1. 配置不硬编码，统一放在根目录 `config/`
+
+- 所有可配置项（API 密钥、URL、参数、开关等）必须写入 `config/` 目录下的配置文件（JSON/YAML）
+- 禁止在代码中硬编码任何配置值
+
+## 2. 转发配置写在 `__init__`，不建子目录专用配置文件
+
+- 模块的配置入口/转发映射写在对应包的 `__init__.py` 中
+- 禁止在 `tools/`、`services/`、`agents/` 等子目录下自建 config 子目录
+- 正确示范：`tools/trends/__init__.py` 的自发现注册（`_TOOLS` dict）
+- 反例：在 `tools/trends/` 下放 `trends_config.json`
+
+## 3. 输出文件统一在 `data/cache/`
+
+- 所有运行时数据统一写入 `data/cache/`
+- 禁止在其他位置散落输出文件，`data/` 已在 `.gitignore`
+
+## 4. 分层架构：agent → service → tools
+
+- 严格分层，只允许上级调用下级
+- `agent` 禁止直接调 `tools` 做数据采集（应通过 service）
+- 同级频繁互调说明职责划分有问题，应拆分或合并
+
+## 5. schemas 负责格式转换，routers 负责分发，统一数据出口
+
+- `schemas.py`：所有数据格式定义和转换（dataclass、from_dict、to_dict、format_text）
+- `routers/`：HTTP API 层，外部请求入口和分发，不含业务逻辑
+- 数据出口统一：HTTP → `routers/api.py`，飞书交互 → `services/bot.py`，推送 → `tools/system/feishu_send.py`
+- adapter/service 不允许自行直接向外部输出（stdout 供 cron 管道除外）
+
+## 关键日志点
+
+所有 service 和 agent 主入口统一调用 `tools/logger.py::get_logger(__name__)`：
+
+| 节点 | 日志 |
+|------|------|
+| TrendsService.main() | `"{mode}: N items fetched"` |
+| FeedsService.main() | `"feeds: N items collected"` |
+| ContentAgent | `"{mode}: N tagged, M uncertain, scored [min-max]"` |
+| SummaryAgent | `"{mode}: X deep, Y regular, Z discarded, sent OK/FAIL"` |
+| SearchService.search() | `"search '{query}': N results from {engines}"` |
