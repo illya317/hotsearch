@@ -42,7 +42,7 @@
     "东方财富热榜": 10
   },
   "llm_refine_threshold": 60,
-  "detail_threshold": 80,
+  "detail_threshold": 70,
   "high_threshold": 70,
   "low_threshold": 30
 }
