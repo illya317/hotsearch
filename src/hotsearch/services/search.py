@@ -65,10 +65,18 @@ class SearchService:
         engines: list[str] | None = None,
         max_results: int = 5,
         save: bool = True,
+        force: bool = False,
     ) -> dict:
         """Run search across engines, dedup, filter, return aggregated results."""
         if engines is None:
             engines = ["tavily", "exa"]
+
+        # Check cache first
+        if not force:
+            cached = self._load_cache(query)
+            if cached is not None:
+                _log.info("search '%s': %d results from cache", query, len(cached.get("results", [])))
+                return cached
 
         all_results: list[dict] = []
         with ThreadPoolExecutor() as pool:
@@ -102,6 +110,7 @@ class SearchService:
         if save and ranked:
             md = _to_markdown(ranked[:max_results], query)
             self._save_md(query, md)
+            self._save_cache(query, output)
 
         _log.info("search '%s': %d results from %s", query, len(ranked), engines)
         return output
@@ -186,6 +195,29 @@ class SearchService:
             else:
                 lines.append(f"  · {title}")
         return "\n".join(lines) if lines else ""
+
+    def _cache_key(self, query: str) -> str:
+        return hashlib.md5(query.encode()).hexdigest()[:16]
+
+    def _load_cache(self, query: str) -> dict | None:
+        path = CACHE_SEARCH_DIR / f"search_{self._cache_key(query)}.json"
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        return None
+
+    def _save_cache(self, query: str, data: dict) -> Path:
+        CACHE_SEARCH_DIR.mkdir(parents=True, exist_ok=True)
+        path = CACHE_SEARCH_DIR / f"search_{self._cache_key(query)}.json"
+        payload = {
+            "query": query,
+            "time": datetime.now().isoformat(),
+            "results": data["results"],
+        }
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return path
 
     def _save_md(self, query: str, md: str) -> Path:
         CACHE_SEARCH_DIR.mkdir(parents=True, exist_ok=True)
