@@ -172,9 +172,13 @@ class ContentAgent:
             if item.get("score", 0) >= threshold:
                 self._llm_refine(item)
 
-        deep, regular, discard = self.scorer.classify_by_score(all_items)
+        # Step 4: Top-N curation — deep=top 5, brief=next 10, discard=rest
+        all_items.sort(key=lambda i: i.get("score", 0), reverse=True)
+        deep = all_items[:5]
+        brief = all_items[5:15]
+        discard = all_items[15:]
 
-        # Step 4: Save
+        # Step 5: Save
         scored_data = {
             "mode": mode,
             "name": name,
@@ -183,7 +187,7 @@ class ContentAgent:
             "total": len(all_items),
             "uncertain_count": raw.get("uncertain_count", 0),
             "deep": deep,
-            "regular": regular,
+            "brief": brief,
             "discard": discard,
         }
 

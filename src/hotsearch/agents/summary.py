@@ -104,8 +104,8 @@ class SummaryAgent:
             mode = scored.get("mode", "")
             name = scored.get("name", mode)
             deep = scored.get("deep", [])
-            regular = scored.get("regular", [])
-            combined = deep + regular
+            brief = scored.get("brief", [])
+            combined = deep + brief
             for item in combined:
                 item["source"] = name
             all_items.extend(combined)
