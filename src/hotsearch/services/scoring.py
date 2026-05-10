@@ -87,7 +87,7 @@ class ScoringService:
 
     def _match_deep_dive(self, title: str, tags: list[str]) -> bool:
         for trigger in self.rules["deep_dive_triggers"]:
-            if trigger in title:
+            if trigger in title or any(trigger in tag for tag in tags):
                 return True
         return False
 
