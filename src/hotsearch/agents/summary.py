@@ -89,6 +89,10 @@ class SummaryAgent:
                 [{"role": "user", "content": prompt}], max_tokens=200
             )
             text = raw.strip().strip('"').strip("'")
+            # Strip markdown formatting
+            for md in ["**", "*", "#", "`"]:
+                text = text.replace(md, "")
+            text = text.strip()
             if not text or text == "暂无可靠信息":
                 return ""
             if len(text) > 300:
