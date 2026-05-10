@@ -8,4 +8,6 @@ cache/
 logs/
 data/outputs/
 data/cache/
+data/prompts/
+data/embeddings/
 *.db-journal

@@ -1,35 +1,60 @@
-"""Embedding tool: BAAI/bge-small-zh-v1.5 for semantic similarity."""
+"""Embedding tool: BAAI/bge-m3 for semantic similarity. Disk cache at data/embeddings/."""
 
 import hashlib
+import json
+import os
 from typing import cast
 
 import numpy as np
 
+from hotsearch import EMBEDDINGS_DIR
+
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+
 _Model = None
-_Cache: dict[str, list[float]] = {}
 
 
 def _get_model():
-    """Lazy-load the BGE-M3 model."""
     global _Model
     if _Model is None:
         from sentence_transformers import SentenceTransformer
 
-        _Model = SentenceTransformer("BAAI/bge-small-zh-v1.5")
+        _Model = SentenceTransformer("BAAI/bge-m3")
     return _Model
 
 
+def _cache_key(text: str) -> str:
+    return hashlib.md5(text.encode()).hexdigest()[:16]
+
+
+def _load_cache(key: str) -> list[float] | None:
+    path = EMBEDDINGS_DIR / f"{key}.json"
+    if path.exists():
+        try:
+            return cast(list[float], json.loads(path.read_text()))
+        except Exception:
+            pass
+    return None
+
+
+def _save_cache(key: str, vec: list[float]) -> None:
+    EMBEDDINGS_DIR.mkdir(parents=True, exist_ok=True)
+    path = EMBEDDINGS_DIR / f"{key}.json"
+    path.write_text(json.dumps(vec, ensure_ascii=False))
+
+
 def embed(texts: list[str]) -> list[list[float]]:
-    """Return 512-dim embedding vectors for a list of texts."""
+    """Return 1024-dim embedding vectors for a list of texts. Cache to disk."""
     model = _get_model()
     results: list[list[float]] = []
     to_compute: list[str] = []
     to_compute_idx: list[int] = []
 
     for i, text in enumerate(texts):
-        key = hashlib.md5(text.encode()).hexdigest()
-        if key in _Cache:
-            results.append(_Cache[key])
+        key = _cache_key(text)
+        cached = _load_cache(key)
+        if cached is not None:
+            results.append(cached)
         else:
             results.append([])  # placeholder
             to_compute.append(text)
@@ -38,9 +63,9 @@ def embed(texts: list[str]) -> list[list[float]]:
     if to_compute:
         vectors = model.encode(to_compute, normalize_embeddings=True)
         for idx, text, vec in zip(to_compute_idx, to_compute, vectors):
-            key = hashlib.md5(text.encode()).hexdigest()
-            vector_list = cast(list[float], vec.tolist())
-            _Cache[key] = vector_list
+            key = _cache_key(text)
+            vector_list = cast(list[float], [round(float(v), 6) for v in vec])
+            _save_cache(key, vector_list)
             results[idx] = vector_list
 
     return results
