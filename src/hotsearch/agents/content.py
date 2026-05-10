@@ -65,7 +65,7 @@ class TagEngine:
             {"role": "user", "content": prompt},
         ]
         try:
-            raw = self.llm.chat(messages, max_tokens=256)
+            raw = self.llm.chat(messages)
             text = raw.strip().strip("`").replace("json", "").strip()
             parsed = json.loads(text)
             if isinstance(parsed, list):
@@ -91,7 +91,7 @@ class TagEngine:
             {"role": "user", "content": prompt},
         ]
         try:
-            raw = self.llm.chat(messages, max_tokens=2048)
+            raw = self.llm.chat(messages)
             text = raw.strip()
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0]
@@ -138,7 +138,7 @@ class ContentAgent:
             {"role": "user", "content": prompt},
         ]
         try:
-            raw = self.llm.chat(messages, max_tokens=256)
+            raw = self.llm.chat(messages)
             text = raw.strip().strip("`").replace("json", "").strip()
             # Extract first integer from response
             m = __import__("re").search(r"-?\d+", text)
