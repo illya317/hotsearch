@@ -92,14 +92,16 @@ class ScoringService:
             similarity_score = (sim + 1) / 2 * 100  # [-1, 1] -> [0, 100]
         except Exception:
             similarity_score = 50  # neutral fallback
+        item["sim_score"] = int(similarity_score)
 
         # Step D: weighted combination
         w = self.rules.get("embedding_weight", 0.3)
-        final = tag_score * (1 - w) + similarity_score * w
+        combined = tag_score * (1 - w) + similarity_score * w
+        combined = max(0, min(100, combined))
+        item["combined_score"] = int(combined)
 
-        # Step E: clamp
-        final = max(0, min(100, final))
-        item["score"] = int(final)
+        # Step E: final (will be refined by LLM later)
+        item["score"] = item["combined_score"]
 
         # Deep dive flag
         if self._match_deep_dive(title, tags):

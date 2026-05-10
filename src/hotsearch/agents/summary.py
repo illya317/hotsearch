@@ -15,7 +15,7 @@ from datetime import datetime
 
 import jinja2
 
-from hotsearch import CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT
+from hotsearch import CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT, RANKING_DIR
 from hotsearch.llms import llm_for_agent
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
@@ -194,10 +194,33 @@ class SummaryAgent:
         json_path = CACHE_SUMMARY_DIR / f"summary_{ts}.json"
         json_path.write_text(json.dumps(summary_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        # Save formatted output to outputs/
+        # Save formatted output
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         md_path = OUTPUT_DIR / f"summary_{ts}.md"
         md_path.write_text(text, encoding="utf-8")
+
+        # Save full ranking
+        RANKING_DIR.mkdir(parents=True, exist_ok=True)
+        ranking_items = []
+        for rank, item in enumerate(all_items, 1):
+            ranking_items.append({
+                "rank": rank,
+                "title": item.get("title", ""),
+                "sim_score": item.get("sim_score", 0),
+                "combined_score": item.get("combined_score", 0),
+                "final_score": item.get("score", 0),
+                "tag_score": item.get("tag_score", 0),
+                "tags": item.get("tags", []),
+                "source": item.get("source", ""),
+                "llm_refined": item.get("llm_refined", False),
+            })
+        ranking_path = RANKING_DIR / f"ranking_{ts}.json"
+        ranking_path.write_text(json.dumps({
+            "time": time_str,
+            "period": period,
+            "total": len(ranking_items),
+            "items": ranking_items,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
 
         _log.info("all: %d deep, %d brief, %d sources, sent=%s",
                    len(deep_items), len(brief_items), len(scored_list), send)
