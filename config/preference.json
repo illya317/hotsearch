@@ -1,9 +1,0 @@
-{
-  "base_score": 50,
-  "keep_bonus": 30,
-  "interest_bonus": 20,
-  "discard_penalty": 40,
-  "high_threshold": 70,
-  "low_threshold": 30,
-  "detail_threshold": 80
-}
