@@ -1,4 +1,11 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
+
+
+def _filter_kwargs(cls, kwargs: dict) -> dict:
+    """Keep only kwargs that match the dataclass fields."""
+    valid = {f.name for f in fields(cls)}
+    return {k: v for k, v in kwargs.items() if k in valid}
+
 
 # === 热榜 ===
 
@@ -10,6 +17,7 @@ class HotsearchItem:
     heat_num: int = 0
     label_name: str = ""
     rating: dict | None = None
+    item_key: str = ""
 
 
 @dataclass
@@ -51,7 +59,7 @@ class HotsearchData:
                 PlatformResult(
                     platform=p.get("platform", ""),
                     display_name=p.get("display_name", ""),
-                    items=[HotsearchItem(**i) for i in p.get("items", [])],
+                    items=[HotsearchItem(**_filter_kwargs(HotsearchItem, i)) for i in p.get("items", [])],
                 )
                 for p in d.get("platforms", [])
             ]
@@ -111,7 +119,7 @@ class AINewsData:
                 AINewsSource(
                     source=s.get("source", ""),
                     display_name=s.get("display_name", ""),
-                    items=[AINewsItem(**i) for i in s.get("items", [])],
+                    items=[AINewsItem(**_filter_kwargs(AINewsItem, i)) for i in s.get("items", [])],
                 )
                 for s in d.get("sources", [])
             ]
@@ -150,7 +158,7 @@ class GitHubTrendingData:
 
     @classmethod
     def from_dict(cls, d: dict) -> "GitHubTrendingData":
-        return cls(items=[GitHubRepo(**i) for i in d.get("items", [])])
+        return cls(items=[GitHubRepo(**_filter_kwargs(GitHubRepo, i)) for i in d.get("items", [])])
 
     def to_dict(self) -> dict:
         return {"items": [asdict(i) for i in self.items]}
