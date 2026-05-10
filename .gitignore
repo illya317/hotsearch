@@ -10,5 +10,4 @@ data/outputs/
 data/cache/
 data/prompts/
 data/embeddings/
-data/briefing/
 *.db-journal
