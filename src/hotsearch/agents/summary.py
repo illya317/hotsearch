@@ -57,7 +57,12 @@ class SummaryAgent:
     def _run_all(self, send: bool) -> str:
         """Load all scored data, combine, render one briefing."""
         all_scored = []
-        for path in sorted(CACHE_CRON_DIR.glob("*_scored_*.json")):
+        paths = sorted(
+            CACHE_CRON_DIR.glob("*_scored_*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for path in paths:
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 # Only take the latest per source
