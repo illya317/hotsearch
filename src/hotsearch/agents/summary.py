@@ -15,7 +15,7 @@ from datetime import datetime
 
 import jinja2
 
-from hotsearch import CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT
+from hotsearch import BRIEFING_DIR, CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT
 from hotsearch.llms import llm_for_agent
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
@@ -194,10 +194,14 @@ class SummaryAgent:
         json_path = CACHE_SUMMARY_DIR / f"summary_{ts}.json"
         json_path.write_text(json.dumps(summary_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        # Save formatted output to outputs/
+        # Save formatted output to outputs/ and briefing/
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        BRIEFING_DIR.mkdir(parents=True, exist_ok=True)
         md_path = OUTPUT_DIR / f"summary_{ts}.md"
         md_path.write_text(text, encoding="utf-8")
+        # Top-10 briefing
+        br_path = BRIEFING_DIR / f"briefing_{ts}.md"
+        br_path.write_text(text, encoding="utf-8")
 
         _log.info("all: %d deep, %d brief, %d sources, sent=%s",
                    len(deep_items), len(brief_items), len(scored_list), send)
