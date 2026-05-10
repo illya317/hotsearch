@@ -1,5 +1,0 @@
-[21:58:46] step2_content: ainews
-2026-05-10 21:58:48 | WARNING  | content | llm_refine failed for "AI agents that hack computers and replicate themselves, and they're getting better fast": invalid literal for int() with base 10: ''
-2026-05-10 21:58:50 | WARNING  | content | llm_refine failed for 'GPT-5.5 costs 49 to 92 percent more than its predecessor, depending on the input length': invalid literal for int() with base 10: ''
-2026-05-10 21:58:50 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [50-70]
-/Users/koito/Desktop/Project/hotsearch/data/cache/cron/ainews_scored_20260510_2158.json

@@ -5,3 +5,7 @@ __pycache__/
 cache/
 *.egg-info/
 .claude/
+logs/
+data/outputs/
+data/cache/
+*.db-journal

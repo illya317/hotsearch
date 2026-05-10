@@ -1,4 +1,0 @@
-[22:16:58] step2_content: ithome
-2026-05-10 22:17:18 | WARNING  | content | llm_refine failed for '78 岁中国半导体教父张汝京最新发声：网上很多人执着于 2/3nm 尖端芯片是认知误区，80% 的市场不需要先进制程': invalid literal for int() with base 10: ''
-2026-05-10 22:17:18 | INFO     | content | ithome: 5 tagged, 3 uncertain, scored [0-65]
-/Users/koito/Desktop/Project/hotsearch/data/cache/cron/ithome_scored_20260510_2217.json

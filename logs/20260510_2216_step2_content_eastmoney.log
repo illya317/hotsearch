@@ -1,5 +1,0 @@
-[22:16:54] step2_content: eastmoney
-2026-05-10 22:16:55 | WARNING  | content | llm_refine failed for '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': invalid literal for int() with base 10: ''
-2026-05-10 22:16:58 | WARNING  | content | llm_refine failed for '伊朗已回应美国提出的结束战争方案': invalid literal for int() with base 10: ''
-2026-05-10 22:16:58 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [50-100]
-/Users/koito/Desktop/Project/hotsearch/data/cache/cron/eastmoney_scored_20260510_2216.json
