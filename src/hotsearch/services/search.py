@@ -53,6 +53,13 @@ def _to_markdown(results: list[dict], query: str) -> str:
     return "\n".join(lines)
 
 
+_JUNK_PATTERNS = [
+    "郑重声明", "代客理财", "免费荐股", "炒股培训", "非法证券",
+    "不代表本网站立场", "据此操作风险自担", "财富号", "股吧",
+    "评论", "分享至", "朋友圈", "微博",
+]
+
+
 class SearchService:
     """Unified search across Tavily and Exa."""
 
@@ -130,7 +137,7 @@ class SearchService:
         result = tavily_search(
             query, max_results, include_answer=False, search_depth="basic"
         )
-        return [
+        results = [
             {
                 "title": r.get("title", ""),
                 "url": r.get("url", ""),
@@ -138,12 +145,13 @@ class SearchService:
             }
             for r in result.get("results", [])
         ]
+        return [r for r in results if self._is_quality_snippet(r.get("snippet", ""))]
 
     def _search_exa(self, query: str, max_results: int) -> list[dict]:
         from hotsearch.tools.system.exa_search import search_all
 
         result = search_all(query, max_results, "auto", 0, False)
-        return [
+        results = [
             {
                 "title": r.get("title", ""),
                 "url": r.get("url", ""),
@@ -151,6 +159,21 @@ class SearchService:
             }
             for r in result.get("results", [])
         ]
+        return [r for r in results if self._is_quality_snippet(r.get("snippet", ""))]
+
+    @staticmethod
+    def _is_quality_snippet(snippet: str) -> bool:
+        """Filter out low-quality snippets (ads, forums, disclaimers)."""
+        if not snippet or len(snippet) < 20:
+            return False
+        for pattern in _JUNK_PATTERNS:
+            if pattern in snippet:
+                return False
+        # Too many special chars = likely navigation/formatting junk
+        special = sum(1 for c in snippet if c in "#*|_=[]{}")
+        if special > len(snippet) * 0.15:
+            return False
+        return True
 
     def _deduplicate(self, results: list[dict]) -> list[dict]:
         seen: set[str] = set()
@@ -188,12 +211,12 @@ class SearchService:
         for r in results[:3]:
             title = self._clean_text(r.get("title", ""))[:80]
             snippet = self._clean_text(r.get("snippet", ""))
-            if snippet and len(snippet) > 30:
+            if not snippet:
+                continue
+            if len(snippet) > 30:
                 lines.append(f"  · {title}\n    {snippet[:120]}")
-            elif snippet:
-                lines.append(f"  · {title}: {snippet}")
             else:
-                lines.append(f"  · {title}")
+                lines.append(f"  · {title}: {snippet}")
         return "\n".join(lines) if lines else ""
 
     def _cache_key(self, query: str) -> str:
