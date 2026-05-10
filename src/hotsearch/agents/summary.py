@@ -86,7 +86,7 @@ class SummaryAgent:
         )
         try:
             raw = self.llm.chat(
-                [{"role": "user", "content": prompt}], max_tokens=200
+                [{"role": "user", "content": prompt}], max_tokens=512
             )
             text = raw.strip().strip('"').strip("'")
             # Strip markdown formatting

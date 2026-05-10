@@ -138,7 +138,7 @@ class ContentAgent:
             {"role": "user", "content": prompt},
         ]
         try:
-            raw = self.llm.chat(messages, max_tokens=64)
+            raw = self.llm.chat(messages, max_tokens=256)
             text = raw.strip().strip("`").replace("json", "").strip()
             # Extract first integer from response
             m = __import__("re").search(r"-?\d+", text)
