@@ -182,11 +182,9 @@ class ContentAgent:
             if item.get("score", 0) >= threshold:
                 self._llm_refine(item)
 
-        # Step 4: Top-N curation — deep=top 5, brief=next 10, discard=rest
+        # Step 4: Threshold-based classification (no per-platform top-N limit)
         all_items.sort(key=lambda i: i.get("score", 0), reverse=True)
-        deep = all_items[:5]
-        brief = all_items[5:15]
-        discard = all_items[15:]
+        deep, brief, discard = self.scorer.classify_by_score(all_items)
 
         # Step 5: Save
         scored_data = {

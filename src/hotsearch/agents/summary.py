@@ -128,10 +128,11 @@ class SummaryAgent:
                 "avg": sum(scores) // len(scores) if scores else 0,
             })
 
-        # Split by threshold: >=90 detailed enrichment, <90 brief
-        deep_items = []
-        brief_items = []
-        for item in all_items:
+        # Global top-N curation: sort all items by score, top 5 deep, next 10 brief
+        all_items.sort(key=lambda i: i.get("score", 0), reverse=True)
+
+        # Enrich high-score candidates among top 15
+        for item in all_items[:15]:
             if item.get("score", 0) >= _detail_threshold():
                 try:
                     self.searcher.enrich_item(item)
@@ -140,16 +141,15 @@ class SummaryAgent:
                         item["search_context"] = self._summarize_result(item["title"], raw)
                 except Exception as e:
                     _log.warning("enrich failed '%s': %s", item.get("title", ""), e)
-                deep_items.append(item)
-            else:
-                brief_items.append(item)
 
-        # Sort deep by score desc, brief by score desc
-        deep_items.sort(key=lambda i: i.get("score", 0), reverse=True)
-        brief_items.sort(key=lambda i: i.get("score", 0), reverse=True)
+        deep_items = all_items[:5]
+        brief_items = all_items[5:15]
 
-        total = len(all_items)
-        discarded = sum(len(s.get("discard", [])) for s in scored_list)
+        total = len(deep_items) + len(brief_items)
+        discarded = max(0, sum(
+            len(s.get("deep", [])) + len(s.get("brief", [])) + len(s.get("discard", []))
+            for s in scored_list
+        ) - total)
 
         text = self._jinja.get_template("summary.j2").render(
             period=period,
