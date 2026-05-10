@@ -6,24 +6,17 @@
     },
     "status": {
       "script": "src/hotsearch/tools/system/server-status.py",
-      "schedule": "57 8 * * *"
+      "schedule": "0 8,20 * * *"
     }
   },
   "trends": {
-    "zhihu": { "schedules": ["7 8 * * *"] },
-    "weibo": { "schedules": ["17 8 * * *"] },
-    "eastmoney": { "schedules": ["32 8 * * *", "37 15 * * *"] },
-    "ithome": { "schedules": ["42 8 * * *"] },
-    "ainews": { "schedules": ["47 8 * * *"] },
-    "github": { "schedules": ["52 8 * * *"] }
+    "zhihu": { "schedules": ["0 8 * * *", "0 20 * * *"] },
+    "weibo": { "schedules": ["0 8 * * *", "0 20 * * *"] },
+    "eastmoney": { "schedules": ["0 8 * * *", "0 20 * * *"] },
+    "ithome": { "schedules": ["0 8 * * *"] },
+    "ainews": { "schedules": ["0 8 * * *"] },
+    "github": { "schedules": ["0 8 * * *"] }
   },
-  "directories": [
-    "data/cache/api",
-    "data/cache/feeds",
-    "data/cache/cron",
-    "data/cache/search",
-    "data/cache/trends"
-  ],
-  "log": "data/cache/cron/cron.log",
-  "trends_config": "config/trends.json"
+  "directories": ["data/cache/feeds", "data/cache/trends", "data/cache/cron"],
+  "log": "data/cache/cron/cron.log"
 }
