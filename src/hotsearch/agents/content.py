@@ -45,9 +45,11 @@ class TagEngine:
                 title = item.get("title", "")
                 if not title:
                     continue
-                tags = classify(title)
-                if "uncertain" in tags:
-                    tags = self._llm_classify(title)
+                # First try LLM classification (Minimax)
+                tags = self._llm_classify(title)
+                # Fallback to keyword if LLM fails
+                if not tags or "uncertain" in tags:
+                    tags = classify(title)
                     if "uncertain" in tags:
                         uncertain.append(title)
                 item["tags"] = tags
