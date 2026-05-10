@@ -19,7 +19,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
 
-from .base import StandardItem, StandardResult, FeedAdapter  # noqa: E402
+from .base import FeedAdapter, StandardItem, StandardResult  # noqa: E402
 
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 STATE_FILE = CACHE_FEEDS_DIR / "release_state.json"

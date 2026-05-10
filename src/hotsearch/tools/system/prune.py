@@ -22,7 +22,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 import sys  # noqa: E402
 
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import CACHE_FEEDS_DIR, CACHE_TRENDS_DIR, CACHE_SEARCH_DIR  # noqa: E402
+from hotsearch import CACHE_FEEDS_DIR, CACHE_SEARCH_DIR, CACHE_TRENDS_DIR  # noqa: E402
 
 
 def _is_expired(ts: float, days: int) -> bool:

@@ -165,9 +165,9 @@ def upload_audio(token: str, file_path: Path) -> str | None:
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"\r\n'
         f"Content-Type: application/octet-stream\r\n\r\n"
-    ).encode("utf-8")
+    ).encode()
     body += file_path.read_bytes()
-    body += f"\r\n--{boundary}--\r\n".encode("utf-8")
+    body += f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(
         "https://open.feishu.cn/open-apis/im/v1/files",
         data=body,

@@ -6,8 +6,8 @@ import os
 import pathlib
 import re
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 from hotsearch import CACHE_SEARCH_DIR
 

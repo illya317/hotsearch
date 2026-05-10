@@ -18,7 +18,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
 
-from .base import StandardItem, StandardResult, FeedAdapter  # noqa: E402
+from .base import FeedAdapter, StandardItem, StandardResult  # noqa: E402
 
 # --- 配置 ---
 API_BASE = "https://law.sfj.sh.gov.cn/yidianApi/api/v1"

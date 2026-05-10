@@ -1,5 +1,4 @@
 from dataclasses import asdict, dataclass, field
-from typing import List, Optional
 
 # === 热榜 ===
 
@@ -10,14 +9,14 @@ class HotsearchItem:
     heat_str: str = ""
     heat_num: int = 0
     label_name: str = ""
-    rating: Optional[dict] = None
+    rating: dict | None = None
 
 
 @dataclass
 class PlatformResult:
     platform: str
     display_name: str
-    items: List[HotsearchItem] = field(default_factory=list)
+    items: list[HotsearchItem] = field(default_factory=list)
 
     def format_text(self) -> str:
         lines = [f"🔥 {self.display_name}热榜 TOP {len(self.items)}", ""]
@@ -43,7 +42,7 @@ class PlatformResult:
 
 @dataclass
 class HotsearchData:
-    platforms: List[PlatformResult] = field(default_factory=list)
+    platforms: list[PlatformResult] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict) -> "HotsearchData":
@@ -89,7 +88,7 @@ class AINewsItem:
 class AINewsSource:
     source: str
     display_name: str
-    items: List[AINewsItem] = field(default_factory=list)
+    items: list[AINewsItem] = field(default_factory=list)
 
     def format_text(self) -> str:
         lines = [f"🤖 {self.display_name} TOP {len(self.items)}", ""]
@@ -103,7 +102,7 @@ class AINewsSource:
 
 @dataclass
 class AINewsData:
-    sources: List[AINewsSource] = field(default_factory=list)
+    sources: list[AINewsSource] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict) -> "AINewsData":
@@ -147,7 +146,7 @@ class GitHubRepo:
 
 @dataclass
 class GitHubTrendingData:
-    items: List[GitHubRepo] = field(default_factory=list)
+    items: list[GitHubRepo] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict) -> "GitHubTrendingData":
@@ -193,10 +192,10 @@ class LawSummary:
 
 @dataclass
 class FeedsData:
-    videos: List[VideoItem] = field(default_factory=list)
-    releases: List[ReleaseItem] = field(default_factory=list)
-    laws: Optional[LawSummary] = None
-    laws_shanghai: Optional[LawSummary] = None
+    videos: list[VideoItem] = field(default_factory=list)
+    releases: list[ReleaseItem] = field(default_factory=list)
+    laws: LawSummary | None = None
+    laws_shanghai: LawSummary | None = None
 
     @classmethod
     def from_daily_dict(cls, d: dict) -> "FeedsData":
