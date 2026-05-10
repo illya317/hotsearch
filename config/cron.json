@@ -1,7 +1,5 @@
 {
-  "all": {
-    "schedules": ["0 8 * * *", "0 20 * * *"]
-  },
+  "period": "12h",
   "tasks": {
     "feeds": {
       "script": "src/hotsearch/services/feeds.py",
@@ -13,6 +11,7 @@
     }
   },
   "trends": {
+    "all": { "schedules": ["2 8 * * *", "2 20 * * *"] },
     "zhihu": { "schedules": ["0 8 * * *", "0 20 * * *"] },
     "weibo": { "schedules": ["0 8 * * *", "0 20 * * *"] },
     "eastmoney": { "schedules": ["0 8 * * *", "0 20 * * *"] },
