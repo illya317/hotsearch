@@ -15,7 +15,7 @@ from pathlib import Path
 
 import jinja2
 
-from hotsearch import CACHE_FEEDS_DIR, CACHE_TRENDS_DIR
+from hotsearch import CACHE_TRENDS_DIR
 from hotsearch.config import prompt_templates
 from hotsearch.llms import LLMClient, llm_for_agent
 from hotsearch.services.feeds import FeedsService

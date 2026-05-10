@@ -3,7 +3,6 @@
 
 import json
 import re
-from typing import Any
 
 from hotsearch import CONFIG_DIR
 from hotsearch.config import prompt_templates
