@@ -4,7 +4,7 @@
 {% for item in deep_items %}
 - **{{ item.title }}** [{{ item.score }}分 / {{ item.source }}]
   {% if item.search_context %}🔍 {{ item.search_context }}{% endif %}
-  {{ item.url }}
+  {% if item.url %}{{ item.url }}{% endif %}
 {% endfor %}
 
 ## 📋 简报（{{ brief_items|length }}条）
