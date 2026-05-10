@@ -15,7 +15,7 @@ from pathlib import Path
 
 import jinja2
 
-from hotsearch import CACHE_TRENDS_DIR
+from hotsearch import CACHE_CRON_DIR
 from hotsearch.config import prompt_templates
 from hotsearch.llms import LLMClient, llm_for_agent
 from hotsearch.services.feeds import FeedsService
@@ -25,7 +25,6 @@ from hotsearch.tools.logger import get_logger
 from hotsearch.tools.tag import TAG_RULES, classify
 
 _log = get_logger(__name__)
-_CACHE_CRON_DIR = Path(CACHE_TRENDS_DIR).parent / "cron"
 
 _templates = prompt_templates()
 _jinja_env = jinja2.Environment(loader=jinja2.DictLoader(_templates))
@@ -149,9 +148,9 @@ class ContentAgent:
             "discard": discard,
         }
 
-        _CACHE_CRON_DIR.mkdir(parents=True, exist_ok=True)
+        CACHE_CRON_DIR.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M")
-        out_path = _CACHE_CRON_DIR / f"{mode}_scored_{ts}.json"
+        out_path = CACHE_CRON_DIR / f"{mode}_scored_{ts}.json"
         out_path.write_text(
             json.dumps(scored_data, ensure_ascii=False, indent=2), encoding="utf-8"
         )

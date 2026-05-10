@@ -36,13 +36,17 @@
 ## 检查命令
 
 ```bash
-# 硬编码检查
-grep -rn "https\?://" src/hotsearch/ --include="*.py" | grep -v "open.feishu\|api.rebang\|api.tavily\|api.exa\|#\|__init__"
+# 硬编码检查（排除已知API域名）
+grep -rnE 'https?://' src/hotsearch/ --include='*.py' | grep -vE 'open.feishu|api.rebang|api.tavily|api.exa|#|__init__'
 
-# 分层违规检查
-grep -rn "from hotsearch\.tools\." src/hotsearch/agents/ --include="*.py"
-grep -rn "from hotsearch\.services\." src/hotsearch/tools/ --include="*.py"
+# 分层违规：agent 调 tools 做数据采集（logger/feishu_send/tag.classify 是合法工具调用）
+grep -rnE 'from hotsearch.tools.(trends|feeds)' src/hotsearch/agents/ --include='*.py'
+
+# 分层违规：tools 调 services（禁止反向）
+grep -rnE 'from hotsearch.services' src/hotsearch/tools/ --include='*.py'
 
 # 输出路径检查
-grep -rn "Path(" src/hotsearch/ --include="*.py" | grep -v "CACHE_\|CONFIG_\|PROJECT_ROOT\|__file__"
+grep -rn "Path(" src/hotsearch/ --include="*.py" | grep -vE "CACHE_|CONFIG_|PROJECT_ROOT|__file__"
 ```
+
+> agent 合法调用 tools: `tools/logger.py`（日志）、`tools/tag.py`（关键词分类）、`tools/system/feishu_send.py`（推送出口）。这三者不算数据采集。

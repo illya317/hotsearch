@@ -11,6 +11,11 @@ logging:
       formatter: default
       level: INFO
       stream: ext://sys.stdout
+    file:
+      class: logging.FileHandler
+      formatter: default
+      level: INFO
+      filename: logs/hotsearch.log
   root:
     level: INFO
-    handlers: [console]
+    handlers: [console, file]

@@ -14,13 +14,12 @@ from pathlib import Path
 
 import jinja2
 
-from hotsearch import CACHE_TRENDS_DIR, PROJECT_ROOT
+from hotsearch import CACHE_CRON_DIR, OUTPUT_DIR
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
 from hotsearch.tools.system.feishu_send import send_to_feishu
 
 _log = get_logger(__name__)
-_CACHE_CRON_DIR = Path(CACHE_TRENDS_DIR).parent / "cron"
 
 
 class SummaryAgent:
@@ -72,7 +71,8 @@ class SummaryAgent:
 
         # Save final output
         ts = datetime.now().strftime("%Y%m%d_%H%M")
-        out_path = _CACHE_CRON_DIR / f"{mode}_final_{ts}.md"
+        out_path = OUTPUT_DIR / f"{mode}_final_{ts}.md"
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         out_path.write_text(text, encoding="utf-8")
 
         _log.info(
@@ -93,7 +93,7 @@ class SummaryAgent:
     def _load_scored(self, source: str) -> dict | None:
         """Find the latest scored JSON for a mode."""
         candidates = []
-        for path in _CACHE_CRON_DIR.glob(f"{source}_scored_*.json"):
+        for path in CACHE_CRON_DIR.glob(f"{source}_scored_*.json"):
             try:
                 candidates.append((path.stat().st_mtime, path))
             except Exception:

@@ -17,6 +17,6 @@
     "ainews": { "schedules": ["0 8 * * *"] },
     "github": { "schedules": ["0 8 * * *"] }
   },
-  "directories": ["data/cache/feeds", "data/cache/trends", "data/cache/cron"],
-  "log": "data/cache/cron/cron.log"
+  "directories": ["data/cache/feeds", "data/cache/trends", "data/cache/cron", "data/outputs", "logs"],
+  "log": "logs/cron.log"
 }
