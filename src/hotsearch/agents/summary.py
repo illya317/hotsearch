@@ -14,7 +14,7 @@ from pathlib import Path
 
 import jinja2
 
-from hotsearch import CACHE_TRENDS_DIR
+from hotsearch import CACHE_TRENDS_DIR, PROJECT_ROOT
 from hotsearch.services.scoring import ScoringService
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
@@ -31,13 +31,7 @@ class SummaryAgent:
         self.searcher = SearchService()
         self.scorer = ScoringService()
         self._jinja = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(
-                str(
-                    Path(__file__).resolve().parent.parent.parent.parent
-                    / "config"
-                    / "prompts"
-                )
-            )
+            loader=jinja2.FileSystemLoader(str(PROJECT_ROOT / "config" / "prompts"))
         )
 
     def run(self, source: str, send: bool = False) -> str:
