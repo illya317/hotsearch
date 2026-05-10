@@ -78,6 +78,9 @@ class SummaryAgent:
 
     def _summarize_result(self, title: str, raw_context: str) -> str:
         """Use LLM to condense search results into a concise Chinese summary."""
+        if not raw_context or not raw_context.strip():
+            return ""
+
         prompt = self._jinja.get_template("search_summarize").render(
             title=title, raw_context=raw_context
         )
@@ -85,9 +88,14 @@ class SummaryAgent:
             raw = self.llm.chat(
                 [{"role": "user", "content": prompt}], max_tokens=200
             )
-            return raw.strip()
+            text = raw.strip().strip('"').strip("'")
+            if not text or text == "暂无可靠信息":
+                return ""
+            if len(text) > 300:
+                text = text[:297] + "..."
+            return text
         except Exception:
-            return raw_context[:200]
+            return ""
 
     def _render_and_send(self, source: str, scored_list: list[dict], send: bool) -> str:
         """Combine scored data, enrich high-score items, render, save, send."""
