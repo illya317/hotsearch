@@ -1,0 +1,61 @@
+2026-05-10 21:04:37 | INFO     | __main__ | zhihu: 5 tagged, 0 uncertain, scored [50-50]
+2026-05-10 21:04:44 | INFO     | __main__ | zhihu: 0 deep, 5 regular, 0 discarded, sent=False
+2026-05-10 21:05:58 | INFO     | __main__ | zhihu: 0 deep, 5 regular, 0 discarded, sent=True
+2026-05-10 21:09:24 | INFO     | content | zhihu: 5 tagged, 1 uncertain, scored [50-50]
+2026-05-10 21:09:25 | INFO     | summary | zhihu: 0 deep, 5 regular, 0 discarded, sent=True
+2026-05-10 21:10:08 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [50-50]
+2026-05-10 21:10:08 | INFO     | summary | zhihu: 0 deep, 5 regular, 0 discarded, sent=True
+2026-05-10 21:17:22 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [50-100]
+2026-05-10 21:17:24 | INFO     | search | search '世界杯中国转播费从 3 亿美元腰斩到 1.5 亿，这个报价怎么样？未来还会降价吗？': 5 results from ['tavily', 'exa']
+2026-05-10 21:17:27 | INFO     | search | search '如何看待消息称华为 Pura X Max 首销超越所有折叠屏手机，10 天累计激活超 20 万？': 5 results from ['tavily', 'exa']
+2026-05-10 21:17:27 | INFO     | summary | zhihu: 2 deep, 3 regular, 0 discarded, sent=True
+2026-05-10 21:17:46 | INFO     | content | weibo: 5 tagged, 0 uncertain, scored [10-70]
+2026-05-10 21:17:47 | INFO     | search | search '中国潜水器发现深海生命绿洲': 5 results from ['tavily', 'exa']
+2026-05-10 21:17:47 | INFO     | summary | weibo: 1 deep, 3 regular, 1 discarded, sent=True
+2026-05-10 21:17:48 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [70-90]
+2026-05-10 21:17:50 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:17:52 | INFO     | search | search '周末要闻汇总：国常会要求加强新型电网、算力网、新一代通信网等规划建设': 5 results from ['tavily', 'exa']
+2026-05-10 21:17:54 | INFO     | search | search '伊朗已回应美国提出的结束战争方案': 5 results from ['tavily', 'exa']
+2026-05-10 21:17:55 | INFO     | search | search '卡塔尔液化天然气运输船时隔约70天首次通过霍尔木兹海峡': 6 results from ['tavily', 'exa']
+2026-05-10 21:17:57 | INFO     | search | search '十大机构论市：A股行情未完 科技成长继续占优': 6 results from ['tavily', 'exa']
+2026-05-10 21:17:57 | INFO     | summary | eastmoney: 5 deep, 0 regular, 0 discarded, sent=True
+2026-05-10 21:18:04 | INFO     | content | ithome: 5 tagged, 0 uncertain, scored [50-70]
+2026-05-10 21:18:06 | INFO     | search | search '78 岁中国半导体教父张汝京最新发声：网上很多人执着于 2/3nm 尖端芯片是认知误区，80% 的市场不需要先进制程': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:08 | INFO     | search | search '武汉大学就 OPPO 母亲节文案发声：极不认同内容表述和价值倾向': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:09 | INFO     | search | search '微信输入法 Windows 2.0.0/iOS 3.3.0 版发布，新增隔空传送': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:09 | INFO     | summary | ithome: 3 deep, 2 regular, 0 discarded, sent=True
+2026-05-10 21:18:11 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [70-70]
+2026-05-10 21:18:13 | INFO     | search | search 'AI agents that hack computers and replicate themselves, and they're getting better fast': 5 results from ['tavily', 'exa']
+2026-05-10 21:18:14 | INFO     | search | search 'Anthropic and OpenAI sit down with religious leaders to seek ethical advice': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:16 | INFO     | search | search 'ByteDance plans over $30 billion for AI expansion, bets big on Chinese chips': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:18 | INFO     | search | search 'METR says it can barely measure Claude Mythos, Palo Alto Networks warns of autonomous AI attackers': 5 results from ['tavily', 'exa']
+2026-05-10 21:18:19 | INFO     | search | search 'GPT-5.5 costs 49 to 92 percent more than its predecessor, depending on the input length': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:19 | INFO     | summary | ainews: 5 deep, 0 regular, 0 discarded, sent=True
+2026-05-10 21:18:40 | INFO     | content | github: 5 tagged, 2 uncertain, scored [50-70]
+2026-05-10 21:18:42 | INFO     | search | search 'nexu-io/open-design': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:44 | INFO     | search | search 'EvoLinkAI/awesome-gpt-image-2-API-and-Prompts': 6 results from ['tavily', 'exa']
+2026-05-10 21:18:45 | INFO     | search | search 'browser-use/browser-harness': 5 results from ['tavily', 'exa']
+2026-05-10 21:18:45 | INFO     | summary | github: 3 deep, 2 regular, 0 discarded, sent=True
+2026-05-10 21:31:19 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [50-100]
+2026-05-10 21:31:39 | INFO     | content | weibo: 5 tagged, 0 uncertain, scored [10-70]
+2026-05-10 21:31:39 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [70-90]
+2026-05-10 21:31:50 | INFO     | content | ithome: 5 tagged, 0 uncertain, scored [50-70]
+2026-05-10 21:31:52 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [70-70]
+2026-05-10 21:32:12 | INFO     | content | github: 5 tagged, 2 uncertain, scored [50-70]
+2026-05-10 21:32:14 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:32:30 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:32:30 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
+2026-05-10 21:33:49 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:33:49 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
+2026-05-10 21:37:00 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [50-100]
+2026-05-10 21:37:23 | INFO     | content | weibo: 5 tagged, 0 uncertain, scored [10-70]
+2026-05-10 21:37:23 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [70-90]
+2026-05-10 21:37:39 | INFO     | content | ithome: 5 tagged, 1 uncertain, scored [50-70]
+2026-05-10 21:37:41 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [70-70]
+2026-05-10 21:37:59 | INFO     | content | github: 5 tagged, 1 uncertain, scored [50-70]
+2026-05-10 21:38:00 | WARNING  | summary | enrich failed '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 'SearchService' object has no attribute '_save_md'
+2026-05-10 21:38:00 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
+2026-05-10 21:39:41 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:39:41 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
+2026-05-10 21:41:56 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:42:02 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True

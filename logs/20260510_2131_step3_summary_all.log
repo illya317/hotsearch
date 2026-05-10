@@ -1,0 +1,18 @@
+[21:32:12] step3_summary: all
+2026-05-10 21:32:14 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+Traceback (most recent call last):
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 187, in <module>
+    main()
+    ~~~~^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 183, in main
+    agent.run(args.source, send=args.send)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 38, in run
+    return self._run_all(send)
+           ~~~~~~~~~~~~~^^^^^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 68, in _run_all
+    return self._render_and_send("all", all_scored, send)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 115, in _render_and_send
+    discarded = sum(s.get("discard", []) for s in scored_list)
+TypeError: unsupported operand type(s) for +: 'int' and 'list'

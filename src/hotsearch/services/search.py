@@ -175,15 +175,17 @@ class SearchService:
         return trusted + rest
 
     def _format_context(self, results: list[dict]) -> str:
-        parts = []
+        lines = []
         for r in results[:3]:
-            title = r.get("title", "")[:60]
-            snippet = r.get("snippet", "")[:100]
-            if snippet:
-                parts.append(f"{title}: {snippet}")
+            title = _clean_text(r.get("title", ""))[:80]
+            snippet = _clean_text(r.get("snippet", ""))
+            if snippet and len(snippet) > 30:
+                lines.append(f"  · {title}\n    {snippet[:120]}")
+            elif snippet:
+                lines.append(f"  · {title}: {snippet}")
             else:
-                parts.append(title)
-        return " | ".join(parts)
+                lines.append(f"  · {title}")
+        return "\n".join(lines) if lines else ""
 
     def _save_md(self, query: str, md: str) -> Path:
         CACHE_SEARCH_DIR.mkdir(parents=True, exist_ok=True)
@@ -192,3 +194,11 @@ class SearchService:
         payload = f"<!-- query: {query} -->\n<!-- time: {datetime.now().isoformat()} -->\n\n{md}"
         path.write_text(payload, encoding="utf-8")
         return path
+
+
+def _clean_text(text: str) -> str:
+    """Remove HTML entities and normalize whitespace in search result text."""
+    import re
+    text = re.sub(r"&[a-z]+;", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()

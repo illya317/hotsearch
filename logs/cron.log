@@ -1,0 +1,76 @@
+[21:10:01] step1_collect: zhihu
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/zhihu_20260510_2110.json
+[21:10:02] step2_content: zhihu
+2026-05-10 21:10:08 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [50-50]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/zhihu_scored_20260510_2110.json
+[21:10:08] step3_summary: zhihu
+2026-05-10 21:10:08 | INFO     | summary | zhihu: 0 deep, 5 regular, 0 discarded, sent=True
+# 知乎热搜 2026-05-10 21:10
+
+## 🔥 深度关注（0条）
+
+
+## 📋 常规浏览（5条）
+
+- 世界杯中国转播费从 3 亿美元腰斩到 1.5 亿，这个报价怎么样？未来还会降价吗？  [50分]
+
+- 浙江杭州 122 件货，94 件仅退款，整条街被电商店铺拉黑，为什么会这样？拉黑整个街道合理吗？  [50分]
+
+- 盲人在盲道被电动车相撞，逃逸者反骂不看路，交警已介入，逃逸者将面临什么？遇到闯道牙的车我们能做点啥？  [50分]
+
+- 世乒赛女团决赛，中国 vs 日本，怎样评价本场比赛？  [50分]
+
+- 如何看待消息称华为 Pura X Max 首销超越所有折叠屏手机，10 天累计激活超 20 万？  [50分]
+
+
+## 📊 统计
+本次采集 5 条，推送 5 条，丢弃 0 条
+飞书发送成功 (第 1 次)
+[21:31:15] step1_collect: zhihu
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/zhihu_20260510_2131.json
+[21:31:15] step2_content: zhihu
+2026-05-10 21:31:19 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [50-100]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/zhihu_scored_20260510_2131.json
+[21:31:19] step1_collect: weibo
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/weibo_20260510_2131.json
+[21:31:19] step2_content: weibo
+2026-05-10 21:31:39 | INFO     | content | weibo: 5 tagged, 0 uncertain, scored [10-70]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/weibo_scored_20260510_2131.json
+[21:31:39] step1_collect: eastmoney
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/eastmoney_20260510_2131.json
+[21:31:39] step2_content: eastmoney
+2026-05-10 21:31:39 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [70-90]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/eastmoney_scored_20260510_2131.json
+[21:31:39] step1_collect: ithome
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/ithome_20260510_2131.json
+[21:31:40] step2_content: ithome
+2026-05-10 21:31:50 | INFO     | content | ithome: 5 tagged, 0 uncertain, scored [50-70]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/ithome_scored_20260510_2131.json
+[21:31:50] step1_collect: ainews
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/ainews_20260510_2131.json
+[21:31:52] step2_content: ainews
+2026-05-10 21:31:52 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [70-70]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/ainews_scored_20260510_2131.json
+[21:31:52] step1_collect: github
+/Users/koito/Desktop/Project/hotsearch/data/cache/trends/github_20260510_2131.json
+[21:31:53] step2_content: github
+2026-05-10 21:32:12 | INFO     | content | github: 5 tagged, 2 uncertain, scored [50-70]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/github_scored_20260510_2132.json
+[21:32:12] step3_summary: all
+2026-05-10 21:32:14 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+Traceback (most recent call last):
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 187, in <module>
+    main()
+    ~~~~^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 183, in main
+    agent.run(args.source, send=args.send)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 38, in run
+    return self._run_all(send)
+           ~~~~~~~~~~~~~^^^^^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 68, in _run_all
+    return self._render_and_send("all", all_scored, send)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/koito/Desktop/Project/hotsearch/src/hotsearch/agents/summary.py", line 115, in _render_and_send
+    discarded = sum(s.get("discard", []) for s in scored_list)
+TypeError: unsupported operand type(s) for +: 'int' and 'list'

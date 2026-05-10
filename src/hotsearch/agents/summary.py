@@ -16,6 +16,7 @@ from datetime import datetime
 import jinja2
 
 from hotsearch import CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT
+from hotsearch.llms import LLMClient, llm_for_agent
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
 from hotsearch.tools.system.feishu_send import send_to_feishu
@@ -36,6 +37,7 @@ class SummaryAgent:
 
     def __init__(self):
         self.searcher = SearchService()
+        self.llm = llm_for_agent("tag")
         self._jinja = jinja2.Environment(
             loader=jinja2.FileSystemLoader(str(PROJECT_ROOT / "config" / "prompts"))
         )
@@ -74,6 +76,19 @@ class SummaryAgent:
 
         return self._render_and_send("all", all_scored, send)
 
+    def _summarize_result(self, title: str, raw_context: str) -> str:
+        """Use LLM to condense search results into a concise Chinese summary."""
+        prompt = self._jinja.get_template("search_summarize").render(
+            title=title, raw_context=raw_context
+        )
+        try:
+            raw = self.llm.chat(
+                [{"role": "user", "content": prompt}], max_tokens=200
+            )
+            return raw.strip()
+        except Exception:
+            return raw_context[:200]
+
     def _render_and_send(self, source: str, scored_list: list[dict], send: bool) -> str:
         """Combine scored data, enrich high-score items, render, save, send."""
         now = datetime.now()
@@ -108,6 +123,9 @@ class SummaryAgent:
             if item.get("score", 0) >= _detail_threshold():
                 try:
                     self.searcher.enrich_item(item)
+                    raw = item.get("search_context", "")
+                    if raw:
+                        item["search_context"] = self._summarize_result(item["title"], raw)
                 except Exception as e:
                     _log.warning("enrich failed '%s': %s", item.get("title", ""), e)
                 deep_items.append(item)
