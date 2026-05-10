@@ -1,4 +1,4 @@
-"""Embedding tool: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 for semantic similarity. Disk cache at data/embeddings/."""
+"""Embedding tool. Config at config/embedding.json. Disk cache at data/embeddings/."""
 
 import hashlib
 import json
@@ -7,11 +7,23 @@ from typing import cast
 
 import numpy as np
 
-from hotsearch import EMBEDDINGS_DIR
+from hotsearch import CONFIG_DIR, EMBEDDINGS_DIR
 
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 _Model = None
+_Config: dict | None = None
+
+
+def _load_config() -> dict:
+    global _Config
+    if _Config is None:
+        path = CONFIG_DIR / "embedding.json"
+        if path.exists():
+            _Config = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            _Config = {}
+    return _Config
 
 
 def _get_model():
@@ -19,8 +31,13 @@ def _get_model():
     if _Model is None:
         from sentence_transformers import SentenceTransformer
 
-        _Model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-        _Model.max_seq_length = 512
+        cfg = _load_config()
+        model_name = cfg.get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+        kwargs = {}
+        if cfg.get("use_fp16"):
+            kwargs["model_kwargs"] = {"torch_dtype": "float16"}
+        _Model = SentenceTransformer(model_name, **kwargs)
+        _Model.max_seq_length = cfg.get("max_seq_length", 512)
     return _Model
 
 
