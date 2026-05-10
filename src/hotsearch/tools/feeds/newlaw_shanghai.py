@@ -16,10 +16,49 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import CACHE_FEEDS_DIR
+from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
+
+from .base import StandardItem, StandardResult, FeedAdapter  # noqa: E402
 
 # --- 配置 ---
 API_BASE = "https://law.sfj.sh.gov.cn/yidianApi/api/v1"
+
+
+class NewlawShanghaiAdapter(FeedAdapter):
+    name = "laws_shanghai"
+    tags = ["政策法规"]
+
+    def normalize(self, raw: dict | list) -> StandardResult:
+        assert isinstance(raw, dict)
+        items: list[StandardItem] = []
+        for item in raw.get("laws", []):
+            items.append(
+                {
+                    "id": str(item.get("law_id", "")) if item.get("law_id") else None,
+                    "title": item.get("law_name", ""),
+                    "url": None,
+                    "time": item.get("implement_date", ""),
+                    "tags": item.get("tags", []),
+                    "summary": f"{item.get('law_type', '')} | {item.get('timeliness', '')}",
+                    "source_name": item.get("law_type", ""),
+                    "raw": item,
+                }
+            )
+        return {
+            "source_name": "上海地方法规",
+            "items": items,
+            "meta": {"count": raw.get("count")},
+            "output": None,
+        }
+
+    def fetch(self, query: str = "", **kwargs) -> dict:
+        laws = fetch_latest()
+        return {"laws": laws, "count": len(laws)}
+
+    def check_new(self) -> list[str]:
+        return check_new_shanghai_laws()
+
+
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 LAST_FILE = CACHE_FEEDS_DIR / "newlaw_shanghai_last.json"
 
@@ -52,13 +91,15 @@ def fetch_latest():
 
     laws = []
     for item in data.get("data", []):
-        laws.append({
-            "law_id": item.get("law_id"),
-            "law_name": item.get("law_name"),
-            "law_type": item.get("law_type"),
-            "implement_date": item.get("implement_date"),
-            "timeliness": item.get("timeliness"),
-        })
+        laws.append(
+            {
+                "law_id": item.get("law_id"),
+                "law_name": item.get("law_name"),
+                "law_type": item.get("law_type"),
+                "implement_date": item.get("implement_date"),
+                "timeliness": item.get("timeliness"),
+            }
+        )
     return laws
 
 
@@ -79,7 +120,9 @@ def save_last(laws):
         "time": now.strftime("%Y-%m-%d %H:%M"),
         "timestamp": time.time(),
     }
-    LAST_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    LAST_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def find_new(current, last):
@@ -147,6 +190,7 @@ def format_message(new_laws):
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="上海地方法规查询")
     parser.add_argument("--list", action="store_true", help="列出最新地方法规")
     args = parser.parse_args()

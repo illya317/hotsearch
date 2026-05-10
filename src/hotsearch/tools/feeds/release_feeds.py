@@ -17,10 +17,56 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import CACHE_FEEDS_DIR
+from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
+
+from .base import StandardItem, StandardResult, FeedAdapter  # noqa: E402
 
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 STATE_FILE = CACHE_FEEDS_DIR / "release_state.json"
+
+
+class ReleaseFeedsAdapter(FeedAdapter):
+    name = "releases"
+    tags = ["开源", "软件"]
+
+    def normalize(self, raw: dict | list) -> StandardResult:
+        assert isinstance(raw, dict)
+        items: list[StandardItem] = []
+        for item in raw.get("releases", []):
+            items.append(
+                {
+                    "id": None,
+                    "title": item.get("title", ""),
+                    "url": item.get("link", ""),
+                    "time": None,
+                    "tags": item.get("tags", []),
+                    "summary": None,
+                    "source_name": item.get("name", ""),
+                    "raw": item,
+                }
+            )
+        return {
+            "source_name": "软件发布",
+            "items": items,
+            "meta": None,
+            "output": None,
+        }
+
+    def fetch(self, query: str = "", **kwargs) -> dict:
+        result = []
+        for name, url in RELEASE_FEEDS.items():
+            release = get_latest_release(url)
+            if release:
+                result.append(
+                    {"name": name, "title": release["title"], "link": release["link"]}
+                )
+            else:
+                result.append({"name": name, "title": None, "error": "获取失败"})
+        return {"releases": result}
+
+    def check_new(self) -> list[str]:
+        return check_new_releases()
+
 
 RELEASE_FEEDS = {
     "OpenClaw": "https://github.com/openclaw/openclaw/releases.atom",
@@ -58,12 +104,18 @@ def get_latest_release(atom_url: str) -> dict | None:
 def load_state() -> dict:
     try:
         data = json.loads(STATE_FILE.read_text())
-        # Migrate old format: {"releases": {"name": "title"}} -> {"releases": {"name": {"title": "...", "updated_at": "..."}}}
+        # Migrate old format:
+        # {"releases": {"name": "title"}} ->
+        # {"releases": {"name": {"title": "...", "updated_at": "..."}}}}
         releases = data.get("releases", {})
         migrated = {}
         for name, val in releases.items():
             if isinstance(val, str):
-                migrated[name] = {"title": val, "time": "1970-01-01 00:00", "timestamp": 0}
+                migrated[name] = {
+                    "title": val,
+                    "time": "1970-01-01 00:00",
+                    "timestamp": 0,
+                }
             else:
                 migrated[name] = val
         return {"releases": migrated}
@@ -111,7 +163,9 @@ def check_new_releases() -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="GitHub Release feed tracker")
-    parser.add_argument("--check-new", action="store_true", help="Check for new releases only")
+    parser.add_argument(
+        "--check-new", action="store_true", help="Check for new releases only"
+    )
     args = parser.parse_args()
 
     if args.check_new:

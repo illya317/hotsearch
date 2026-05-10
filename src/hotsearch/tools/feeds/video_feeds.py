@@ -18,11 +18,62 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import CACHE_FEEDS_DIR
+from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
+
+from .base import StandardItem, StandardResult, FeedAdapter  # noqa: E402
 
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 RSSHUB = os.environ.get("RSSHUB", "http://localhost:1200")
 STATE_FILE = CACHE_FEEDS_DIR / "video_state.json"
+
+
+class VideoFeedsAdapter(FeedAdapter):
+    name = "videos"
+    tags = ["视频", "娱乐"]
+
+    def normalize(self, raw: dict | list) -> StandardResult:
+        assert isinstance(raw, dict)
+        items: list[StandardItem] = []
+        for section in raw.get("videos", []):
+            for entry in section.get("titles", []):
+                if isinstance(entry, dict):
+                    title = entry.get("title", "")
+                    tags = entry.get("tags", [])
+                else:
+                    title = str(entry).lstrip(" •")
+                    tags = []
+                items.append(
+                    {
+                        "id": None,
+                        "title": title,
+                        "url": None,
+                        "time": None,
+                        "tags": tags,
+                        "summary": None,
+                        "source_name": section.get("name", ""),
+                        "raw": {"name": section.get("name"), "title": title},
+                    }
+                )
+        return {
+            "source_name": "视频更新",
+            "items": items,
+            "meta": None,
+            "output": None,
+        }
+
+    def fetch(self, query: str = "", **kwargs) -> dict:
+        sections = []
+        for name, url in VIDEO_FEEDS:
+            data = fetch_url(url)
+            if not data.startswith("Error"):
+                titles = parse_rss_titles(data, 2)
+                if titles:
+                    sections.append({"name": name, "titles": titles})
+        return {"videos": sections}
+
+    def check_new(self) -> list[str]:
+        return check_new_videos()
+
 
 VIDEO_FEEDS = [
     ("军武志", f"{RSSHUB}/bilibili/user/video/435931665?limit=3"),
@@ -75,12 +126,18 @@ def parse_rss_titles(xml_text: str, limit: int = 3) -> list[str]:
 def load_state() -> dict:
     try:
         data = json.loads(STATE_FILE.read_text())
-        # Migrate old format: {"videos": {"name": "title"}} -> {"videos": {"name": {"title": "...", "updated_at": "..."}}}
+        # Migrate old format:
+        # {"videos": {"name": "title"}} ->
+        # {"videos": {"name": {"title": "...", "updated_at": "..."}}}}
         videos = data.get("videos", {})
         migrated = {}
         for name, val in videos.items():
             if isinstance(val, str):
-                migrated[name] = {"title": val, "time": "1970-01-01 00:00", "timestamp": 0}
+                migrated[name] = {
+                    "title": val,
+                    "time": "1970-01-01 00:00",
+                    "timestamp": 0,
+                }
             else:
                 migrated[name] = val
         return {"videos": migrated}
@@ -133,7 +190,9 @@ def check_new_videos() -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Video feed tracker")
-    parser.add_argument("--check-new", action="store_true", help="Check for new videos only")
+    parser.add_argument(
+        "--check-new", action="store_true", help="Check for new videos only"
+    )
     args = parser.parse_args()
 
     if args.check_new:

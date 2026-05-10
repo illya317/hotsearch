@@ -1,0 +1,45 @@
+llm:
+  # Global fallback chain (used when agent has no specific config)
+  fallback_chain:
+    - minimax/MiniMax-M2.7-highspeed
+    - kimi/kimi-for-coding
+    - deepseek/deepseek-v4-flash
+
+  providers:
+    minimax:
+      models:
+        MiniMax-M2.7-highspeed:
+          max_tokens: 1024
+          temperature: 0.7
+
+    kimi:
+      models:
+        kimi-for-coding:
+          max_tokens: 1024
+          temperature: 0.7
+
+    deepseek:
+      models:
+        deepseek-v4-pro:
+          max_tokens: 4096
+          temperature: 0.7
+        deepseek-v4-flash:
+          max_tokens: 2048
+          temperature: 0.5
+
+  # Agent-level model selection.
+  # Use "provider" + "model" for a single client,
+  # or "chain" for a custom fallback sequence.
+  agents:
+    tag:
+      provider: minimax
+      model: MiniMax-M2.7-highspeed
+    search:
+      provider: kimi
+      model: kimi-for-coding
+    preference:
+      provider: minimax
+      model: MiniMax-M2.7-highspeed
+    main:
+      provider: kimi
+      model: kimi-for-coding

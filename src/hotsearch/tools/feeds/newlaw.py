@@ -16,30 +16,103 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import CACHE_FEEDS_DIR
+from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
+
+from .base import StandardItem, StandardResult, FeedAdapter  # noqa: E402
 
 # --- 配置 ---
 API_URL = "https://flk.npc.gov.cn/law-search/search/list"
+
+
+class NewlawAdapter(FeedAdapter):
+    name = "laws"
+    tags = ["政策法规"]
+
+    def normalize(self, raw: dict | list) -> StandardResult:
+        assert isinstance(raw, dict)
+        items: list[StandardItem] = []
+        for item in raw.get("laws", []):
+            status = "有效" if item.get("sxx") == 3 else "尚未生效"
+            items.append(
+                {
+                    "id": str(item.get("bbbs", "")) if item.get("bbbs") else None,
+                    "title": item.get("title", ""),
+                    "url": None,
+                    "time": item.get("gbrq", "") or item.get("sxrq", ""),
+                    "tags": item.get("tags", []),
+                    "summary": f"{item.get('flxz', '')} | {status}",
+                    "source_name": item.get("flxz", ""),
+                    "raw": item,
+                }
+            )
+        return {
+            "source_name": "法律法规",
+            "items": items,
+            "meta": {"count": raw.get("count")},
+            "output": None,
+        }
+
+    def fetch(self, query: str = "", **kwargs) -> dict:
+        laws = fetch_latest()
+        return {"laws": laws, "count": len(laws)}
+
+    def check_new(self) -> list[str]:
+        return check_new_laws()
+
+
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 LAST_FILE = CACHE_FEEDS_DIR / "newlaw_last.json"
 # 只关注中央法律法规（不含地方法规）
-FLFG_CODES = [100, 110, 120, 130, 140, 150, 155, 160, 170, 180, 190, 195, 200, 210, 215, 220, 320, 330, 340, 350]
+FLFG_CODES = [
+    100,
+    110,
+    120,
+    130,
+    140,
+    150,
+    155,
+    160,
+    170,
+    180,
+    190,
+    195,
+    200,
+    210,
+    215,
+    220,
+    320,
+    330,
+    340,
+    350,
+]
 PAGE_SIZE = 20
 
 
 def _http_post(url, body):
     """发 POST 请求"""
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(
+        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+    )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return json.loads(resp.read())
     except Exception:
         # Fallback to curl (for local macOS SSL issues)
         result = subprocess.run(
-            ["curl", "-sS", "--max-time", "15", "-X", "POST", url,
-             "-H", "Content-Type: application/json",
-             "-d", json.dumps(body)],
+            [
+                "curl",
+                "-sS",
+                "--max-time",
+                "15",
+                "-X",
+                "POST",
+                url,
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps(body),
+            ],
             capture_output=True,
         )
         if result.returncode != 0:
@@ -49,29 +122,34 @@ def _http_post(url, body):
 
 def fetch_latest():
     """获取最新法律法规列表"""
-    data = _http_post(API_URL, {
-        "page": 1,
-        "size": PAGE_SIZE,
-        "searchContent": "",
-        "searchType": "1",
-        "searchRange": "1",
-        "sxx": [3, 4],
-        "gbrq": [],
-        "sxrq": [],
-        "flfgCodeId": FLFG_CODES,
-        "zdjgCodeId": [],
-    })
+    data = _http_post(
+        API_URL,
+        {
+            "page": 1,
+            "size": PAGE_SIZE,
+            "searchContent": "",
+            "searchType": "1",
+            "searchRange": "1",
+            "sxx": [3, 4],
+            "gbrq": [],
+            "sxrq": [],
+            "flfgCodeId": FLFG_CODES,
+            "zdjgCodeId": [],
+        },
+    )
 
     laws = []
     for row in data.get("rows", []):
-        laws.append({
-            "bbbs": row.get("bbbs"),
-            "title": row.get("title"),
-            "gbrq": row.get("gbrq"),
-            "sxrq": row.get("sxrq"),
-            "flxz": row.get("flxz"),
-            "sxx": row.get("sxx"),
-        })
+        laws.append(
+            {
+                "bbbs": row.get("bbbs"),
+                "title": row.get("title"),
+                "gbrq": row.get("gbrq"),
+                "sxrq": row.get("sxrq"),
+                "flxz": row.get("flxz"),
+                "sxx": row.get("sxx"),
+            }
+        )
     return laws
 
 
@@ -95,7 +173,9 @@ def save_last(laws):
         "time": now.strftime("%Y-%m-%d %H:%M"),
         "timestamp": time.time(),
     }
-    LAST_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    LAST_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def find_new(current, last):
@@ -160,6 +240,7 @@ def format_message(new_laws):
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="国家法律法规查询")
     parser.add_argument("--list", action="store_true", help="列出最新法律法规")
     args = parser.parse_args()

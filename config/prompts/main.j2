@@ -1,0 +1,39 @@
+{{ summary }}
+
+---
+
+{{ preference }}
+
+{% if template %}
+========================================
+
+{{ template }}
+{% endif %}
+
+{% if contents %}
+========================================
+
+## 24h 数据上下文
+
+{% for content in contents %}
+---
+
+{{ content }}
+
+{% endfor %}
+{% endif %}
+
+{% if search_guide %}
+========================================
+
+{{ search_guide }}
+{% endif %}
+
+{% if prune_guide %}
+{% if search_guide %}
+
+---
+{% endif %}
+
+{{ prune_guide }}
+{% endif %}

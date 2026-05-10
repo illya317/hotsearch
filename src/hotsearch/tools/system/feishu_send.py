@@ -16,9 +16,9 @@ def get_credentials(agent: str | None = None) -> tuple[str | None, str | None]:
         app_secret = os.getenv(f"FS_{name}S")
         if app_id and app_secret:
             return app_id, app_secret
-    # Fallback: read FS_ANYA / FS_ANYAS or FEISHU_APP_ID / FEISHU_APP_SECRET
-    app_id = os.getenv("FEISHU_APP_ID") or os.getenv("FS_ANYA")
-    app_secret = os.getenv("FEISHU_APP_SECRET") or os.getenv("FS_ANYAS")
+    # Fallback: read FS_APP_ID / FS_APP_SECRET or FEISHU_APP_ID / FEISHU_APP_SECRET
+    app_id = os.getenv("FEISHU_APP_ID") or os.getenv("FS_APP_ID")
+    app_secret = os.getenv("FEISHU_APP_SECRET") or os.getenv("FS_APP_SECRET")
     return app_id, app_secret
 
 
@@ -27,13 +27,15 @@ def get_receiver(agent: str | None = None) -> str | None:
         val = os.getenv(f"FS_KOITO_{agent.upper()}")
         if val:
             return val
-    return os.getenv("FEISHU_RECEIVER_ID") or os.getenv("FS_KOITO_ANYA")
+    return os.getenv("FEISHU_RECEIVER_ID") or os.getenv("FS_OPEN_ID")
 
 
 def get_token(app_id: str, app_secret: str) -> str | None:
     url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
     data = json.dumps({"app_id": app_id, "app_secret": app_secret}).encode()
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(
+        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+    )
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read()).get("tenant_access_token")
 
@@ -44,9 +46,15 @@ def send_text(token: str, receiver: str, text: str) -> bool:
     content = json.dumps({"text": text})
     payload = {"receive_id": receiver, "msg_type": "text", "content": content}
     data = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers={
-        "Authorization": f"Bearer {token}", "Content-Type": "application/json",
-    }, method="POST")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
     with urllib.request.urlopen(req, timeout=30) as resp:
         result = json.loads(resp.read())
         if result.get("code") == 0:
@@ -64,9 +72,15 @@ def send_message(token: str, receiver: str, msg_type: str, content: str) -> str 
     url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
     payload = {"receive_id": receiver, "msg_type": msg_type, "content": content}
     data = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers={
-        "Authorization": f"Bearer {token}", "Content-Type": "application/json",
-    }, method="POST")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read())

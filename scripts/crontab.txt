@@ -16,5 +16,5 @@
 # 15:30 东方财富（下午）
 37 15 * * * /root/.openclaw/workspace/hotsearch/scripts/cron-task.sh eastmoney
 
-# 确保 api.py 服务在运行（每分钟检查）
-* * * * * pgrep -f 'python3 /root/.openclaw/workspace/hotsearch/src/hotsearch/services/api.py' > /dev/null || (cd /root/.openclaw/workspace/hotsearch && PYTHONPATH=/root/.openclaw/workspace/hotsearch/src nohup python3 src/hotsearch/services/api.py > /dev/null 2>&1 &)
+# 确保 routers/api.py 服务在运行（每分钟检查）
+* * * * * pgrep -f 'python3 -m routers.api' > /dev/null || (cd /root/.openclaw/workspace/hotsearch/src/hotsearch && PYTHONPATH=/root/.openclaw/workspace/hotsearch/src nohup python3 -m routers.api > /dev/null 2>&1 &)

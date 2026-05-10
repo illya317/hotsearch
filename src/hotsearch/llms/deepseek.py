@@ -7,17 +7,17 @@ from .config import get_model_params
 from .tool import Tool
 
 
-class KimiClient(LLMClient):
+class DeepseekClient(LLMClient):
     def __init__(
         self,
         api_key: str | None = None,
         model: str | None = None,
         base_url: str | None = None,
     ):
-        params = get_model_params("kimi", model)
+        params = get_model_params("deepseek", model)
         super().__init__(
             api_key=api_key,
-            model=model or os.getenv("KIMI_MODEL") or params.get("model"),
+            model=model or os.getenv("DEEPSEEK_MODEL") or params.get("model"),
             base_url=base_url,
         )
 
@@ -28,8 +28,8 @@ class KimiClient(LLMClient):
         max_rounds: int = 5,
         **kwargs,
     ) -> str:
-        key = self._get_key("KIMI_API_KEY")
-        base_url = self._get_base_url("KIMI_BASE_URL")
+        key = self._get_key("DEEPSEEK_API_KEY")
+        base_url = self._get_base_url("DEEPSEEK_BASE_URL")
 
         system_msg = None
         filtered = []
@@ -50,7 +50,7 @@ class KimiClient(LLMClient):
                 for t in tools
             ]
 
-        params = get_model_params("kimi", self.model)
+        params = get_model_params("deepseek", self.model)
 
         for _ in range(max_rounds):
             payload = {

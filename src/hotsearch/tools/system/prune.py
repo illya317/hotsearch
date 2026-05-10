@@ -19,9 +19,10 @@ import time
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
-import sys
+import sys  # noqa: E402
+
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import CACHE_FEEDS_DIR, CACHE_TRENDS_DIR, CACHE_SEARCH_DIR
+from hotsearch import CACHE_FEEDS_DIR, CACHE_TRENDS_DIR, CACHE_SEARCH_DIR  # noqa: E402
 
 
 def _is_expired(ts: float, days: int) -> bool:
@@ -67,12 +68,18 @@ def _prune_state_file(path: Path, key: str, days: int, dry_run: bool) -> int:
         items = data.get(key, {})
         if not isinstance(items, dict):
             return 0
-        expired = [k for k, v in items.items() if isinstance(v, dict) and _is_expired(v.get("timestamp", 0), days)]
+        expired = [
+            k
+            for k, v in items.items()
+            if isinstance(v, dict) and _is_expired(v.get("timestamp", 0), days)
+        ]
         if expired:
             if not dry_run:
                 for k in expired:
                     del items[k]
-                path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                path.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             return len(expired)
     except Exception as e:
         print(f"State file error ({path.name}): {e}")
@@ -83,14 +90,22 @@ def prune_feeds(days: int, dry_run: bool):
     """Remove expired entries from feed state files."""
     total = 0
 
-    vc = _prune_state_file(CACHE_FEEDS_DIR / "video_state.json", "videos", days, dry_run)
+    vc = _prune_state_file(
+        CACHE_FEEDS_DIR / "video_state.json", "videos", days, dry_run
+    )
     if vc:
-        print(f"{'Would remove' if dry_run else 'Removed'} {vc} video entries (>{days}d)")
+        print(
+            f"{'Would remove' if dry_run else 'Removed'} {vc} video entries (>{days}d)"
+        )
         total += vc
 
-    rc = _prune_state_file(CACHE_FEEDS_DIR / "release_state.json", "releases", days, dry_run)
+    rc = _prune_state_file(
+        CACHE_FEEDS_DIR / "release_state.json", "releases", days, dry_run
+    )
     if rc:
-        print(f"{'Would remove' if dry_run else 'Removed'} {rc} release entries (>{days}d)")
+        print(
+            f"{'Would remove' if dry_run else 'Removed'} {rc} release entries (>{days}d)"
+        )
         total += rc
 
     action = "Would remove" if dry_run else "Removed"
@@ -106,8 +121,19 @@ TARGETS = {
 
 def main():
     ap = argparse.ArgumentParser(description="Prune expired cache data")
-    ap.add_argument("--days", type=int, default=7, help="Expiration threshold in days (default: 7)")
-    ap.add_argument("--targets", default="feeds,trends,search", help="Comma-separated targets: feeds,trends,search")
+    ap.add_argument(
+        "--days", type=int, default=7, help="Expiration threshold in days (default: 7)"
+    )
+    ap.add_argument(
+        "--targets",
+        default="feeds,trends,search",
+        help="Comma-separated targets: feeds,trends,search",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print what would be deleted without deleting",
+    )
     ap.add_argument("--dry-run", action="store_true", help="Print what would be deleted without deleting")
     args = ap.parse_args()
 

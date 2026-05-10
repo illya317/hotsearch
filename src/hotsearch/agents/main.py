@@ -5,7 +5,7 @@ Outputs AGENTS.md + 24h data context for external AI consumption.
 
 Usage:
     python3 -m hotsearch.agents.main
-    python3 -m hotsearch.agents.main --no-agent-doc
+    python3 -m hotsearch.agents.main --no-prompts
 """
 
 import argparse
@@ -13,20 +13,19 @@ import json
 import sys
 import urllib.error
 import urllib.request
-from pathlib import Path
+
+import jinja2
+
+from hotsearch.config import prompt_templates
 
 _api = {"base": "http://localhost:3000"}
-_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
-_SUMMARY_MD = _PROMPTS_DIR / "summary.md"
-_PREFERENCE_MD = _PROMPTS_DIR / "preference.md"
-_SEARCH_MD = _PROMPTS_DIR / "search.md"
-_PRUNE_MD = _PROMPTS_DIR / "prune.md"
+_jinja_env = jinja2.Environment(loader=jinja2.DictLoader(prompt_templates()))
 
 
-def _read_file(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8").strip()
-    return ""
+# 禁用系统代理，避免 localhost 请求被拦截
+_proxy_handler = urllib.request.ProxyHandler({})
+_url_opener = urllib.request.build_opener(_proxy_handler)
+urllib.request.install_opener(_url_opener)
 
 
 def api_get(path):
@@ -35,7 +34,9 @@ def api_get(path):
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
-            return data.get("data") if isinstance(data, dict) and "data" in data else data
+            return (
+                data.get("data") if isinstance(data, dict) and "data" in data else data
+            )
     except urllib.error.HTTPError as e:
         print(f"API error {e.code}: {e.read().decode()}", file=sys.stderr)
         return None
@@ -44,94 +45,109 @@ def api_get(path):
         return None
 
 
-def _section(title, items, fmt=None):
-    lines = [f"## {title}"]
-    if not items:
-        lines.append("无更新")
-        return lines
-    for item in items[:10]:
-        lines.append(fmt(item) if fmt else f"- {item}")
-    return lines
-
-
-def _daily_feeds():
-    data = api_get("/daily?period=24h")
-    if not data:
+def _to_text(data) -> str:
+    """把 API 返回的 dict 转成可读的 JSON 字符串。"""
+    if data is None:
         return ""
-    lines = ["# 24小时数据简报\n"]
-    feeds = data.get("feeds", {})
-
-    videos = feeds.get("videos", [])
-    lines.extend(_section("视频更新", videos, lambda v: f"- {v['name']}: {v['title']}"))
-    lines.append("")
-
-    releases = feeds.get("releases", [])
-    lines.extend(_section("开源发布", releases, lambda r: f"- {r['name']}: {r['title']}"))
-    lines.append("")
-
-    laws = feeds.get("laws")
-    if laws:
-        lines.extend(_section("新法速递", [laws], lambda l: f"- 国家法规: {l['count']}条 ({l['time']})"))
-        lines.append("")
-
-    laws_sh = feeds.get("laws_shanghai")
-    if laws_sh:
-        lines.extend(_section("上海法规", [laws_sh], lambda l: f"- 上海法规: {l['count']}条 ({l['time']})"))
-        lines.append("")
-
-    return "\n".join(lines)
+    if isinstance(data, dict):
+        return json.dumps(data, ensure_ascii=False, indent=2)
+    return str(data)
 
 
-def _trends_text():
-    data = api_get("/hotsearch?platform=hot&limit=10")
-    if not data:
-        return ""
-    lines = ["# 当前热榜\n"]
-    for line in data.split("\n")[:15]:
-        lines.append(line)
-    return "\n".join(lines)
+def _daily_feeds(period="24h"):
+    return _to_text(api_get(f"/daily?period={period}"))
+
+
+def _trends_text(platform="hot", limit="10"):
+    return _to_text(api_get(f"/hotsearch?platform={platform}&limit={limit}"))
+
+
+def _ainews_text(source="all", limit="5"):
+    return _to_text(api_get(f"/ainews?source={source}&limit={limit}"))
+
+
+def _github_text(limit="10"):
+    return _to_text(api_get(f"/github-trending?limit={limit}"))
 
 
 def main():
     ap = argparse.ArgumentParser(description="Agent entry point")
     ap.add_argument("--api-base", default=_api["base"], help="API base URL")
-    ap.add_argument("--no-prompts", action="store_true", help="Skip prompt files, output data only")
+    ap.add_argument(
+        "--no-prompts", action="store_true", help="Skip prompt files, output data only"
+    )
+    ap.add_argument(
+        "--feeds",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="包含 feeds (默认: True)",
+    )
+    ap.add_argument(
+        "--trends",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="包含热榜 (默认: True)",
+    )
+    ap.add_argument(
+        "--ainews",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="包含 AI 新闻 (默认: True)",
+    )
+    ap.add_argument(
+        "--github",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="包含 GitHub Trending (默认: True)",
+    )
+    ap.add_argument("--period", default="12h", help="feeds 时间范围 (默认: 12h)")
+    ap.add_argument(
+        "--trends-platform", default="hot", help="热榜平台或 group (默认: hot)"
+    )
+    ap.add_argument("--trends-limit", default="10", help="热榜条数 (默认: 10)")
+    ap.add_argument("--ainews-source", default="all", help="AI 新闻来源 (默认: all)")
+    ap.add_argument("--ainews-limit", default="5", help="AI 新闻条数 (默认: 5)")
+    ap.add_argument(
+        "--github-limit", default="10", help="GitHub Trending 条数 (默认: 10)"
+    )
     args = ap.parse_args()
 
     _api["base"] = args.api_base
 
-    feeds = _daily_feeds()
-    trends = _trends_text()
+    # 收集各板块内容
+    contents = []
+    if args.feeds:
+        text = _daily_feeds(args.period)
+        if text:
+            contents.append(text)
+    if args.trends:
+        text = _trends_text(args.trends_platform, args.trends_limit)
+        if text:
+            contents.append(text)
+    if args.ainews:
+        text = _ainews_text(args.ainews_source, args.ainews_limit)
+        if text:
+            contents.append(text)
+    if args.github:
+        text = _github_text(args.github_limit)
+        if text:
+            contents.append(text)
 
-    if not args.no_prompts:
-        summary = _read_file(_SUMMARY_MD)
-        preference = _read_file(_PREFERENCE_MD)
-        search_guide = _read_file(_SEARCH_MD)
-        prune_guide = _read_file(_PRUNE_MD)
-        if summary:
-            print(summary)
-        if preference:
-            print("\n---\n")
-            print(preference)
-        if feeds or trends:
-            print("\n" + "=" * 40 + "\n")
+    if args.no_prompts:
+        if contents:
+            print("\n---\n".join(contents))
+        return
 
-    if feeds:
-        print(feeds)
-    if trends:
-        if feeds:
-            print("\n---\n")
-        print(trends)
-
-    if not args.no_prompts:
-        if search_guide or prune_guide:
-            print("\n" + "=" * 40 + "\n")
-        if search_guide:
-            print(search_guide)
-        if prune_guide:
-            if search_guide:
-                print("\n---\n")
-            print(prune_guide)
+    templates = prompt_templates()
+    rendered = _jinja_env.get_template("main").render(
+        summary=templates.get("summary", ""),
+        preference=templates.get("preference", ""),
+        search_guide=templates.get("search", ""),
+        prune_guide=templates.get("prune", ""),
+        template=templates.get("template", ""),
+        contents=contents,
+    )
+    print(rendered)
 
 
 if __name__ == "__main__":

@@ -8,17 +8,15 @@ import json
 import os
 import re
 import subprocess
-import sys
 import threading
-from pathlib import Path
-
-from hotsearch import PROJECT_ROOT, CACHE_FEEDS_DIR, BOT_CONFIG
 
 import lark_oapi as lark
-from hotsearch.tools.feeds.video_feeds import get_videos
 
-FS_APP_ID = os.environ.get("FS_ANYA", "")
-FS_APP_SECRET = os.environ.get("FS_ANYAS", "")
+from hotsearch import BOT_CONFIG, CACHE_FEEDS_DIR
+from hotsearch.tools.feeds.video_feeds import get_videos  # type: ignore
+
+FS_APP_ID = os.environ.get("FS_APP_ID", "")
+FS_APP_SECRET = os.environ.get("FS_APP_SECRET", "")
 
 # --- Load config ---
 _bot_cfg = json.loads(BOT_CONFIG.read_text())
@@ -53,12 +51,33 @@ def _run_hotsearch(cmd_id: str, limit: int) -> str:
     if platform:
         args.append(platform)
     args.append(str(limit))
-    return _run_tool(*args)
+    args.append("--json")
+    raw = _run_tool(*args)
+    # Parse JSON and format via schemas
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return raw
+    if tool == "trends.hotsearch":
+        from hotsearch.schemas import HotsearchData
+
+        return HotsearchData.from_dict(data).format_text()
+    elif tool == "trends.ainews":
+        from hotsearch.schemas import AINewsData
+
+        return AINewsData.from_dict(data).format_text()
+    elif tool == "trends.github_trending":
+        from hotsearch.schemas import GitHubTrendingData
+
+        return GitHubTrendingData.from_dict(data).format_text()
+    return raw
 
 
 def strip_links(text):
     lines = text.split("\n")
-    return "\n".join(l for l in lines if not re.match(r"^\s*https?://\S+\s*$", l.strip()))
+    return "\n".join(
+        line for line in lines if not re.match(r"^\s*https?://\S+\s*$", line.strip())
+    )
 
 
 def load_newlaw_state(filepath):
@@ -72,7 +91,13 @@ def get_push_status():
     lines = ["📊 追踪状态概览\n"]
 
     lines.append("📺 视频频道 (6个)")
-    from hotsearch.tools.feeds.video_feeds import VIDEO_FEEDS, fetch_url, parse_latest_item, load_state as load_video_state
+    from hotsearch.tools.feeds.video_feeds import (
+        VIDEO_FEEDS,
+        fetch_url,
+        parse_latest_item,
+    )
+    from hotsearch.tools.feeds.video_feeds import load_state as load_video_state
+
     videos_state = load_video_state().get("videos", {})
     for name, url in VIDEO_FEEDS:
         check_url = url.replace("limit=3", "limit=1")
@@ -89,11 +114,14 @@ def get_push_status():
             else:
                 current_title = "(解析失败)"
                 status = "❌"
-        display = f"• {name}: {current_title[:40]}{'...' if len(current_title) > 40 else ''} [{status}]"
+        title = current_title[:40] + "..." if len(current_title) > 40 else current_title
+        display = f"• {name}: {title} [{status}]"
         lines.append(display)
 
     lines.append("\n\n📦 软件仓库 (2个)")
-    from hotsearch.tools.feeds.release_feeds import RELEASE_FEEDS, get_latest_release, load_state as load_release_state
+    from hotsearch.tools.feeds.release_feeds import RELEASE_FEEDS, get_latest_release
+    from hotsearch.tools.feeds.release_feeds import load_state as load_release_state
+
     releases_state = load_release_state().get("releases", {})
     for name, url in RELEASE_FEEDS.items():
         release = get_latest_release(url)
@@ -101,12 +129,16 @@ def get_push_status():
         if release:
             current_title = release["title"]
             status = "✅已最新" if current_title == stored_title else "🆕有更新"
-            display = f"• {name}: {current_title[:40]}{'...' if len(current_title) > 40 else ''} [{status}]"
+            title = (
+                current_title[:40] + "..." if len(current_title) > 40 else current_title
+            )
+            display = f"• {name}: {title} [{status}]"
         else:
             display = f"• {name}: (获取失败) [❌]"
         lines.append(display)
 
     lines.append("\n\n📋 法规监控 (2个)")
+
     def _first_law_title(state):
         if not state:
             return None
@@ -119,13 +151,17 @@ def get_push_status():
 
     law_title = _first_law_title(load_newlaw_state(NEWLAW_FILE))
     if law_title:
-        lines.append(f"• 国家法律法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}")
+        lines.append(
+            f"• 国家法律法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}"
+        )
     else:
         lines.append("• 国家法律法规: (无记录)")
 
     law_title = _first_law_title(load_newlaw_state(NEWLAW_SH_FILE))
     if law_title:
-        lines.append(f"• 上海地方法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}")
+        lines.append(
+            f"• 上海地方法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}"
+        )
     else:
         lines.append("• 上海地方法规: (无记录)")
 
@@ -141,7 +177,7 @@ def get_help():
         primary = aliases[0] if aliases else cmd_id
         lines.append(f"{primary} — {help_text}")
     lines.append("")
-    lines.append("💡 提示: 可在命令后加数字指定条数，如 \"fi 10\"")
+    lines.append('💡 提示: 可在命令后加数字指定条数，如 "fi 10"')
     return "\n".join(lines)
 
 
@@ -187,10 +223,12 @@ _processed_msgs = set()
 _client = None
 
 
-def get_client():
+def get_client() -> lark.Client:
     global _client
     if _client is None:
-        _client = lark.Client.builder().app_id(FS_APP_ID).app_secret(FS_APP_SECRET).build()
+        _client = (
+            lark.Client.builder().app_id(FS_APP_ID).app_secret(FS_APP_SECRET).build()
+        )
     return _client
 
 
@@ -201,48 +239,70 @@ def reply_async(message_id, text, chat_id=None):
             reply = reply[:3950] + "\n\n... (截断)"
 
         content_json = json.dumps({"text": reply}, ensure_ascii=False)
-        req = lark.im.v1.ReplyMessageRequest.builder() \
-            .message_id(message_id) \
-            .request_body(lark.im.v1.ReplyMessageRequestBody.builder()
+        req = (
+            lark.im.v1.ReplyMessageRequest.builder()
+            .message_id(message_id)
+            .request_body(
+                lark.im.v1.ReplyMessageRequestBody.builder()
                 .content(content_json)
                 .msg_type("text")
-                .build()) \
+                .build()
+            )
             .build()
-        get_client().im.v1.message.reply(req)
+        )
+        client = get_client()
+        im = client.im
+        assert im is not None
+        v1 = im.v1
+        assert v1 is not None
+        message = v1.message
+        assert message is not None
+        message.reply(req)
     except Exception as e:
         print(f"Reply error: {e}")
 
 
 def do_p2_im_message_receive_v1(data: lark.im.v1.P2ImMessageReceiveV1) -> None:
-    msg = data.event.message
+    event = data.event
+    assert event is not None
+    msg = event.message
+    assert msg is not None
     if msg.message_type != "text":
         return
 
-    if msg.message_id in _processed_msgs:
+    message_id = msg.message_id
+    assert message_id is not None
+    if message_id in _processed_msgs:
         return
-    _processed_msgs.add(msg.message_id)
+    _processed_msgs.add(message_id)
     if len(_processed_msgs) > 500:
         _processed_msgs.clear()
 
-    content = json.loads(msg.content)
+    msg_content = msg.content
+    assert msg_content is not None
+    content = json.loads(msg_content)
     text = content.get("text", "").strip()
     text = re.sub(r"@_\w+\s*", "", text).strip()
-    mentions = data.event.message.mentions if hasattr(data.event.message, 'mentions') and data.event.message.mentions else []
+    mentions = msg.mentions if hasattr(msg, "mentions") and msg.mentions else []
     for m in mentions:
-        if hasattr(m, 'key') and m.key:
+        if hasattr(m, "key") and m.key:
             text = text.replace(m.key, "").strip()
     print(f"[MSG] raw={content}, cleaned='{text}'", flush=True)
     if not text:
         return
 
-    chat_id = msg.chat_id if hasattr(msg, 'chat_id') else None
-    threading.Thread(target=reply_async, args=(msg.message_id, text, chat_id), daemon=True).start()
+    chat_id = msg.chat_id if hasattr(msg, "chat_id") else None
+    threading.Thread(
+        target=reply_async, args=(message_id, text, chat_id), daemon=True
+    ).start()
 
 
 def main():
-    event_handler = lark.EventDispatcherHandler.builder("", "") \
-        .register_p2_im_message_receive_v1(do_p2_im_message_receive_v1) \
+    event_handler = (
+        lark.EventDispatcherHandler.builder("", "")
+        .register_p2_im_message_receive_v1(do_p2_im_message_receive_v1)
         .build()
+    )
 
     cli = lark.ws.Client(
         FS_APP_ID,

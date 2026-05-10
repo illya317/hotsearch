@@ -6,11 +6,12 @@ Bot + API 服务，定时推送热榜/资讯，支持交互式查询。
 
 ```
 .
+├── routers/            -- HTTP API 网关（端口 3000）
+│   └── api.py          -- HTTP 入口
 ├── services/           -- 服务层（独立运行，直接调 tools）
 │   ├── bot.py          -- 交互 Bot
 │   ├── trends.py       -- 定时热榜推送
-│   ├── feeds.py        -- 内容更新追踪
-│   └── api.py          -- HTTP API 网关（端口 3000）
+│   └── feeds.py        -- 内容更新追踪
 ├── tools/              -- 工具层
 │   ├── trends/         -- 热榜抓取
 │   ├── feeds/          -- 内容追踪
@@ -26,7 +27,8 @@ Bot + API 服务，定时推送热榜/资讯，支持交互式查询。
 │   ├── feishu_voice.json -- TTS 音色
 │   └── cron.json       -- Cron 分发配置
 ├── agents/             -- AI 上下文生成
-│   ├── summary.py      -- 读取 API 输出格式化数据
+│   ├── main.py         -- Agent 入口，输出上下文
+│   ├── assistant.py    -- Tag 规则维护助手（默认 minimax）
 │   └── prompts/        -- AI system prompt 模板
 └── data/
     ├── cache/          -- 运行时数据
@@ -76,6 +78,11 @@ Cron 任务分发器，读取 `config/cron.json` 调度，底层调用 `run.sh` 
 
 Agent 入口。自动输出 `AGENTS.md` + 24h 数据上下文，供外部 AI 消费。
 
+Prompt 渲染使用 **Jinja2**，模板放在 `agents/prompts/`：
+- `main.md` — 主模板（串联 summary + preference + 数据 + search/prune）
+- `tag.md` / `tag_classify.md` — tag 维护助手模板
+- `summary.md` / `preference.md` / `search.md` / `prune.md` — 静态片段
+
 | 参数 | 说明 |
 |------|------|
 | `--no-prompts` | 不输出 prompt 文件，只输出数据 |
@@ -85,7 +92,7 @@ Agent 入口。自动输出 `AGENTS.md` + 24h 数据上下文，供外部 AI 消
 ./scripts/run.sh src/hotsearch/agents/main.py
 ```
 
-### services/api.py
+### routers/api.py
 
 HTTP API 网关，端口 3000，无命令行参数。
 
@@ -150,11 +157,112 @@ Exa AI 搜索 API。
 ./scripts/run.sh src/hotsearch/tools/system/exa_search.py --query "xxx" --save
 ```
 
+## 新增数据源约定
+
+### 1. 标签（tags）
+
+每个 Adapter 必须定义 `tags`：
+
+```python
+class ExampleAdapter(TrendAdapter):  # 或 FeedAdapter
+    name = "example"
+    tags = ["tech", "AI"]  # 至少 1 个标签
+```
+
+**trends 标签建议**：按领域分类
+- `["social"]` — 社交媒体（微博、知乎、小红书）
+- `["hot"]` — 综合热榜
+- `["tech"]` — 科技/数码/开源
+- `["AI"]` — AI 新闻
+- `["finance"]` — 财经/金融
+- `["entertainment"]` — 影视/娱乐
+
+**feeds 标签建议**：按内容类型
+- `["video"]` — 视频更新
+- `["release"]` — 软件发布
+- `["law"]` — 法律法规
+- `["news"]` — 新闻资讯
+
+**内容自动打标签**：`tools/tag.py` 维护了一套关键词规则，Adapter 可以在 `fetch()` 中给每条 item 的 `title` 自动分类：
+
+```python
+from hotsearch.tools.tag import classify
+
+item["tags"] = classify(item["title"])  # 返回如 ["AI/科技"] 或 ["uncertain"]
+```
+
+规则文件 `tools/tag.py` 需要人工维护关键词列表，不属于任何分类的默认打上 `uncertain`。
+
+### 2. trends 输出格式
+
+`fetch()` 返回 `dict`，CLI `--json` 统一包装为：
+
+```json
+{
+  "adapter": "github",
+  "tags": ["tech", "opensource"],
+  "fetched_at": "2026-05-09T12:00:00+08:00",
+  "data": {
+    "items": [...]
+  }
+}
+```
+
+- `adapter` — Adapter 的 `name`
+- `tags` — Adapter 的 `tags`
+- `fetched_at` — 抓取时间（ISO 8601）
+- `data` — `fetch()` 返回的原始 dict
+
+### 3. feeds 输出格式
+
+`fetch()` 返回 `dict`，结构自由，但建议包含：
+
+```json
+{
+  "items": [...],
+  "count": 10,
+  "fetched_at": "2026-05-09T12:00:00+08:00"
+}
+```
+
+支持 `check_new()` 的 Feed，返回 `list[str]`（格式化好的通知文本）。
+
+### 4. 最小实现模板
+
+**trends：**
+
+```python
+from .base import TrendAdapter
+
+class ExampleAdapter(TrendAdapter):
+    name = "example"
+    tags = ["tech"]
+
+    def fetch(self, query: str = "", **kwargs) -> dict:
+        return {"items": [...]}
+```
+
+**feeds：**
+
+```python
+from .base import FeedAdapter
+
+class ExampleAdapter(FeedAdapter):
+    name = "example"
+    tags = ["news"]
+
+    def fetch(self, query: str = "", **kwargs) -> dict:
+        return {"items": [...], "count": len([...])}
+
+    def check_new(self) -> list[str]:
+        return ["📰 Example: 新标题"]
+```
+
 ## 部署
 
 ```bash
 crontab scripts/crontab.txt       # 安装定时任务
-cd src/hotsearch/services
-python3 api.py &                  # HTTP API，端口 3000
+cd src/hotsearch
+python3 -m routers.api &          # HTTP API，端口 3000
 python3 bot.py &                  # WebSocket Bot
 ```

@@ -6,24 +6,59 @@ Task definitions in config/trends.json, schedules in config/cron.json.
 
 import argparse
 import json
-import subprocess
-import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from hotsearch import CACHE_TRENDS_DIR, SCHEDULER_CONFIG
 from hotsearch.tools.system.feishu_send import send_to_feishu
+from hotsearch.tools.trends import get_tools
+
+# Load scheduler config
+_scheduler_cfg = json.loads(SCHEDULER_CONFIG.read_text())
+_tasks = _scheduler_cfg["tasks"]
+
+PLATFORM_NAMES = {k: v["display_name"] for k, v in _tasks.items()}
 
 
-def _run_tool(*args) -> str:
-    r = subprocess.run(args, capture_output=True, text=True, timeout=30)
-    if r.returncode != 0:
-        raise Exception(r.stderr.strip() or "tool failed")
-    return r.stdout.strip()
+class TrendsService:
+    """Business layer: aggregate trends from adapters, output standard JSON."""
+
+    def collect(self, sources: list[str] | None = None, **kwargs) -> dict:
+        tools = get_tools()
+        if sources:
+            tools = [t for t in tools if t.name in sources]
+
+        results = []
+        with ThreadPoolExecutor() as pool:
+            futures = {pool.submit(t.fetch, **kwargs): t for t in tools}
+            for future in as_completed(futures):
+                tool = futures[future]
+                try:
+                    data = future.result()
+                    normalized = tool.normalize(data)
+                    results.append(
+                        {
+                            "source": tool.name,
+                            "status": "ok",
+                            "data": normalized,
+                            "tags": tool.tags,
+                        }
+                    )
+                except Exception as e:
+                    results.append(
+                        {
+                            "source": tool.name,
+                            "status": "error",
+                            "error": str(e),
+                            "tags": tool.tags,
+                        }
+                    )
+
+        return {"category": "trends", "count": len(tools), "results": results}
 
 
 def _last_content(mode: str) -> str | None:
-    """Read the most recent saved content for this mode."""
     files = sorted(CACHE_TRENDS_DIR.glob(f"{mode}_*.json"), reverse=True)
     if not files:
         return None
@@ -56,12 +91,28 @@ def _save(mode: str, name: str, content: str):
     return path
 
 
-# Load scheduler config
-_scheduler_cfg = json.loads(SCHEDULER_CONFIG.read_text())
-_tasks = _scheduler_cfg["tasks"]
-
-COMMANDS = {k: v["command"] for k, v in _tasks.items() if "command" in v}
-PLATFORM_NAMES = {k: v["display_name"] for k, v in _tasks.items()}
+def _fetch_for_mode(mode: str) -> str:
+    """Fetch content for a specific scheduled mode (legacy CLI mapping)."""
+    if mode in ("zhihu", "weibo", "eastmoney", "ithome"):
+        adapter = next((t for t in get_tools() if t.name == "hotsearch"), None)
+        if not adapter:
+            raise RuntimeError("hotsearch adapter not found")
+        data = adapter.fetch(platform=mode, limit=5)
+        return json.dumps(data, ensure_ascii=False)
+    elif mode == "ainews":
+        adapter = next((t for t in get_tools() if t.name == "ainews"), None)
+        if not adapter:
+            raise RuntimeError("ainews adapter not found")
+        data = adapter.fetch(source="decoder", limit=5)
+        return json.dumps(data, ensure_ascii=False)
+    elif mode == "github":
+        adapter = next((t for t in get_tools() if t.name == "github"), None)
+        if not adapter:
+            raise RuntimeError("github adapter not found")
+        data = adapter.fetch(limit=5)
+        return json.dumps(data, ensure_ascii=False)
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
 
 
 def task_scheduled(name, content):
@@ -85,12 +136,12 @@ def main():
 
     print(f"[{now.strftime('%Y-%m-%d %H:%M')}] Mode: {mode}")
 
-    if mode not in COMMANDS:
+    if mode not in PLATFORM_NAMES:
         print(f"Unknown mode: {mode}")
-        print(f"Available: {', '.join(COMMANDS.keys())}")
+        print(f"Available: {', '.join(PLATFORM_NAMES.keys())}")
         return
 
-    content = _run_tool(*COMMANDS[mode])
+    content = _fetch_for_mode(mode)
     last = _last_content(mode)
     if last == content:
         print("Content unchanged, skip save and send")

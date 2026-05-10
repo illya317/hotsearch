@@ -3,18 +3,31 @@ import os
 import urllib.request
 
 from .base import LLMClient
+from .config import get_model_params
 from .tool import Tool
 
 
 class MinimaxClient(LLMClient):
-    def __init__(self, api_key: str | None = None, model: str | None = None, base_url: str | None = None):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+    ):
+        params = get_model_params("minimax", model)
         super().__init__(
             api_key=api_key,
-            model=model or os.getenv("MINIMAX_MODEL"),
+            model=model or os.getenv("MINIMAX_MODEL") or params.get("model"),
             base_url=base_url,
         )
 
-    def chat(self, messages: list[dict], tools: list[Tool] | None = None, max_rounds: int = 5, **kwargs) -> str:
+    def chat(
+        self,
+        messages: list[dict],
+        tools: list[Tool] | None = None,
+        max_rounds: int = 5,
+        **kwargs,
+    ) -> str:
         key = self._get_key("MINIMAX_API_KEY")
         base_url = self._get_base_url("MINIMAX_BASE_URL")
 
@@ -37,10 +50,15 @@ class MinimaxClient(LLMClient):
                 for t in tools
             ]
 
+        params = get_model_params("minimax", self.model)
+
         for _ in range(max_rounds):
             payload = {
                 "model": self.model,
-                "max_tokens": kwargs.get("max_tokens", 1024),
+                "max_tokens": kwargs.get("max_tokens", params.get("max_tokens", 1024)),
+                "temperature": kwargs.get(
+                    "temperature", params.get("temperature", 0.7)
+                ),
                 "messages": filtered,
             }
             if system_msg:
@@ -84,7 +102,7 @@ class MinimaxClient(LLMClient):
 
             tool_results = []
             for block in tool_use_blocks:
-                tool = next((t for t in tools if t.name == block["name"]), None)
+                tool = next((t for t in (tools or []) if t.name == block["name"]), None)
                 if not tool:
                     result = f"Tool {block['name']} not found"
                 else:
@@ -93,11 +111,13 @@ class MinimaxClient(LLMClient):
                     except Exception as e:
                         result = f"Error: {e}"
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block["id"],
-                    "content": str(result),
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block["id"],
+                        "content": str(result),
+                    }
+                )
 
             filtered.append({"role": "user", "content": tool_results})
 

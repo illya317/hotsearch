@@ -47,6 +47,6 @@
     "douban": "douban-media"
   },
   "groups": {
-    "hot": ["zhihu", "weibo"]
+    "hot": ["zhihu", "weibo", "ithome", "eastmoney", "bilibili", "xiaohongshu", "douban"]
   }
 }

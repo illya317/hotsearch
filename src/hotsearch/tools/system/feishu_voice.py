@@ -26,8 +26,13 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
-from hotsearch import VOICES_CONFIG
-from hotsearch.tools.system.feishu_send import get_credentials, get_receiver, get_token, send_message
+from hotsearch import VOICES_CONFIG  # noqa: E402
+from hotsearch.tools.system.feishu_send import (  # noqa: E402
+    get_credentials,
+    get_receiver,
+    get_token,
+    send_message,
+)
 
 DEFAULT_VOICE = "female-shaonv"
 
@@ -48,9 +53,16 @@ def load_agent_voices(lang: str | None = None) -> dict:
             pass
     return {}
 
+
 PROXY_KEYS = [
-    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "SOCKS_PROXY",
-    "http_proxy", "https_proxy", "all_proxy", "socks_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "SOCKS_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "socks_proxy",
 ]
 
 
@@ -66,7 +78,9 @@ def resolve_agent(explicit: str | None) -> str | None:
     return explicit or detect_agent()
 
 
-def resolve_voice(explicit_voice: str | None, agent: str | None = None, lang: str | None = None) -> str:
+def resolve_voice(
+    explicit_voice: str | None, agent: str | None = None, lang: str | None = None
+) -> str:
     if explicit_voice:
         return explicit_voice
     if agent:
@@ -87,7 +101,9 @@ def _load_config() -> dict:
     return {}
 
 
-def _get_credentials_with_config(agent: str | None = None) -> tuple[str | None, str | None]:
+def _get_credentials_with_config(
+    agent: str | None = None,
+) -> tuple[str | None, str | None]:
     """Extended credential lookup that also checks ~/.openclaw/config/feishu.json."""
     app_id, app_secret = get_credentials(agent)
     if app_id and app_secret:
@@ -99,7 +115,9 @@ def _get_credentials_with_config(agent: str | None = None) -> tuple[str | None, 
     )
 
 
-def _get_receiver_with_config(explicit: str | None, agent: str | None = None) -> str | None:
+def _get_receiver_with_config(
+    explicit: str | None, agent: str | None = None
+) -> str | None:
     """Extended receiver lookup that also checks config file."""
     if explicit:
         return explicit
@@ -112,10 +130,21 @@ def _get_receiver_with_config(explicit: str | None, agent: str | None = None) ->
 
 def get_duration_ms(audio_path: Path) -> int:
     try:
-        result = subprocess.run([
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)
-        ], capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(audio_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         if result.returncode == 0 and result.stdout.strip():
             return int(float(result.stdout.strip()) * 1000)
     except Exception:
@@ -128,23 +157,26 @@ def upload_audio(token: str, file_path: Path) -> str | None:
     boundary = "----FormBoundary7MA4YWxkTrZu0gW"
     body = (
         f"--{boundary}\r\n"
-        f"Content-Disposition: form-data; name=\"file_type\"\r\n\r\nopus\r\n"
+        f'Content-Disposition: form-data; name="file_type"\r\n\r\nopus\r\n'
         f"--{boundary}\r\n"
-        f"Content-Disposition: form-data; name=\"file_name\"\r\n\r\nvoice.opus\r\n"
+        f'Content-Disposition: form-data; name="file_name"\r\n\r\nvoice.opus\r\n'
         f"--{boundary}\r\n"
-        f"Content-Disposition: form-data; name=\"duration\"\r\n\r\n{duration_ms}\r\n"
+        f'Content-Disposition: form-data; name="duration"\r\n\r\n{duration_ms}\r\n'
         f"--{boundary}\r\n"
-        f"Content-Disposition: form-data; name=\"file\"; filename=\"{file_path.name}\"\r\n"
+        f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"\r\n'
         f"Content-Type: application/octet-stream\r\n\r\n"
     ).encode("utf-8")
     body += file_path.read_bytes()
     body += f"\r\n--{boundary}--\r\n".encode("utf-8")
     req = urllib.request.Request(
         "https://open.feishu.cn/open-apis/im/v1/files",
-        data=body, headers={
+        data=body,
+        headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": f"multipart/form-data; boundary={boundary}",
-        }, method="POST")
+        },
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read()).get("data", {}).get("file_key")
@@ -155,9 +187,15 @@ def upload_audio(token: str, file_path: Path) -> str | None:
 
 # --- TTS ---
 
-async def minimax_tts(text: str, output_path: Path, api_key: str,
-                      voice_id: str, model: str = "speech-2.8-hd",
-                      speed: float = 1.0) -> bool:
+
+async def minimax_tts(
+    text: str,
+    output_path: Path,
+    api_key: str,
+    voice_id: str,
+    model: str = "speech-2.8-hd",
+    speed: float = 1.0,
+) -> bool:
     """Text → Minimax WebSocket TTS → MP3 temp file."""
     import websockets
 
@@ -173,27 +211,36 @@ async def minimax_tts(text: str, output_path: Path, api_key: str,
     try:
         async with websockets.connect(
             "wss://api.minimaxi.com/ws/v1/t2a_v2",
-            additional_headers=headers, ssl=ssl_context, proxy=None
+            additional_headers=headers,
+            ssl=ssl_context,
+            proxy=None,
         ) as ws:
             connected = json.loads(await ws.recv())
             if connected.get("event") != "connected_success":
                 print(f"TTS connection failed: {connected}", file=sys.stderr)
                 return False
 
-            await ws.send(json.dumps({
-                "event": "task_start",
-                "model": model,
-                "voice_setting": {
-                    "voice_id": voice_id,
-                    "speed": speed,
-                    "vol": 1, "pitch": 0,
-                    "english_normalization": False,
-                },
-                "audio_setting": {
-                    "sample_rate": 24000, "bitrate": 128000,
-                    "format": "mp3", "channel": 1,
-                },
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "event": "task_start",
+                        "model": model,
+                        "voice_setting": {
+                            "voice_id": voice_id,
+                            "speed": speed,
+                            "vol": 1,
+                            "pitch": 0,
+                            "english_normalization": False,
+                        },
+                        "audio_setting": {
+                            "sample_rate": 24000,
+                            "bitrate": 128000,
+                            "format": "mp3",
+                            "channel": 1,
+                        },
+                    }
+                )
+            )
 
             resp = json.loads(await ws.recv())
             if resp.get("event") != "task_started":
@@ -206,7 +253,10 @@ async def minimax_tts(text: str, output_path: Path, api_key: str,
             while True:
                 resp = json.loads(await ws.recv())
                 if "base_resp" in resp and resp["base_resp"].get("status_code") != 0:
-                    print(f"TTS error: {resp['base_resp'].get('status_msg')}", file=sys.stderr)
+                    print(
+                        f"TTS error: {resp['base_resp'].get('status_msg')}",
+                        file=sys.stderr,
+                    )
                     return False
                 if "data" in resp and "audio" in resp["data"]:
                     audio_hex = resp["data"]["audio"]
@@ -236,10 +286,21 @@ async def minimax_tts(text: str, output_path: Path, api_key: str,
 def convert_to_opus(input_path: Path, opus_path: Path) -> bool:
     """Any audio → OPUS 16kHz mono via FFmpeg."""
     result = subprocess.run(
-        ["ffmpeg", "-y", "-i", str(input_path),
-         "-acodec", "libopus", "-ac", "1", "-ar", "16000",
-         str(opus_path)],
-        capture_output=True, text=True,
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(input_path),
+            "-acodec",
+            "libopus",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            str(opus_path),
+        ],
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         print(f"FFmpeg error: {result.stderr}", file=sys.stderr)
@@ -250,13 +311,25 @@ def convert_to_opus(input_path: Path, opus_path: Path) -> bool:
 
 # --- Main ---
 
+
 def main():
     parser = argparse.ArgumentParser(description="Send voice message to Feishu via TTS")
     parser.add_argument("--text", "-t", required=True, help="Text to speak")
-    parser.add_argument("--voice", "-v", default=None, help="Voice ID (overrides agent voice)")
-    parser.add_argument("--agent", "-a", default=None, help="Agent name (e.g. illya, kuro)")
-    parser.add_argument("--speed", "-s", type=float, default=1.0, help="Speed (0.5-2.0)")
-    parser.add_argument("--lang", "-l", default=None, help="Language for voice selection (e.g. ja for Japanese)")
+    parser.add_argument(
+        "--voice", "-v", default=None, help="Voice ID (overrides agent voice)"
+    )
+    parser.add_argument(
+        "--agent", "-a", default=None, help="Agent name (e.g. illya, kuro)"
+    )
+    parser.add_argument(
+        "--speed", "-s", type=float, default=1.0, help="Speed (0.5-2.0)"
+    )
+    parser.add_argument(
+        "--lang",
+        "-l",
+        default=None,
+        help="Language for voice selection (e.g. ja for Japanese)",
+    )
     parser.add_argument("--receiver", "-r", help="Receiver open_id")
     parser.add_argument("--chat-id", help="Group chat_id (send to group instead of DM)")
     args = parser.parse_args()
@@ -270,13 +343,19 @@ def main():
     # Receiver: --chat-id (群聊) 优先，否则 --receiver / env (私聊)
     receiver = args.chat_id or _get_receiver_with_config(args.receiver, agent)
     if not receiver:
-        print("Error: No receiver. Use --chat-id, --receiver, --agent, or set FEISHU_RECEIVER_ID", file=sys.stderr)
+        print(
+            "Error: No receiver. Use --chat-id, --receiver, --agent, or set FEISHU_RECEIVER_ID",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Feishu credentials
     app_id, app_secret = _get_credentials_with_config(agent)
     if not app_id or not app_secret:
-        print("Error: No Feishu credentials. Set FEISHU_APP_ID/FEISHU_APP_SECRET", file=sys.stderr)
+        print(
+            "Error: No Feishu credentials. Set FEISHU_APP_ID/FEISHU_APP_SECRET",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Minimax API key
@@ -290,7 +369,9 @@ def main():
 
     # Step 1: TTS
     print(f"[1/4] TTS (voice: {voice}, speed: {args.speed}x) ...")
-    if not asyncio.run(minimax_tts(args.text, tmp_mp3, api_key, voice_id=voice, speed=args.speed)):
+    if not asyncio.run(
+        minimax_tts(args.text, tmp_mp3, api_key, voice_id=voice, speed=args.speed)
+    ):
         sys.exit(1)
 
     # Step 2: Convert to OPUS
@@ -312,7 +393,12 @@ def main():
     # Step 4: Send
     duration_ms = get_duration_ms(tmp_opus)
     print(f"[4/4] Sending voice to {receiver} (duration: {duration_ms}ms) ...")
-    msg_id = send_message(token, receiver, "audio", json.dumps({"file_key": file_key, "duration": duration_ms}))
+    msg_id = send_message(
+        token,
+        receiver,
+        "audio",
+        json.dumps({"file_key": file_key, "duration": duration_ms}),
+    )
     if msg_id:
         print(f"Done! message_id={msg_id}")
         sys.exit(0)
