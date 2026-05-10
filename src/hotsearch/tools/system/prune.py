@@ -134,7 +134,6 @@ def main():
         action="store_true",
         help="Print what would be deleted without deleting",
     )
-    ap.add_argument("--dry-run", action="store_true", help="Print what would be deleted without deleting")
     args = ap.parse_args()
 
     targets = [t.strip() for t in args.targets.split(",")]

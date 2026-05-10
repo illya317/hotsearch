@@ -10,11 +10,10 @@ import argparse
 import json
 import sys
 from datetime import datetime
-from pathlib import Path
 
 import jinja2
 
-from hotsearch import CACHE_CRON_DIR, OUTPUT_DIR
+from hotsearch import CACHE_CRON_DIR, OUTPUT_DIR, PROJECT_ROOT
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
 from hotsearch.tools.system.feishu_send import send_to_feishu
