@@ -221,7 +221,7 @@ class SummaryAgent:
 
         _save_ranking("raw", lambda i: i.get("sim_score", 0))
         _save_ranking("weighted", lambda i: i.get("combined_score", 0))
-        _save_ranking("llm", lambda i: i.get("score", 0))
+        _save_ranking("agent", lambda i: i.get("score", 0))
 
         _log.info("all: %d deep, %d brief, %d sources, sent=%s",
                    len(deep_items), len(brief_items), len(scored_list), send)

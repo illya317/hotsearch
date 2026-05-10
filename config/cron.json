@@ -1,4 +1,7 @@
 {
+  "all": {
+    "schedules": ["0 8 * * *", "0 20 * * *"]
+  },
   "tasks": {
     "feeds": {
       "script": "src/hotsearch/services/feeds.py",
