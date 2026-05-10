@@ -95,6 +95,10 @@ class ScoringService:
                 return True
         return False
 
+    @property
+    def llm_refine_threshold(self) -> int:
+        return self.rules.get("llm_refine_threshold", 60)
+
     def classify_by_score(
         self, items: list[dict]
     ) -> tuple[list[dict], list[dict], list[dict]]:

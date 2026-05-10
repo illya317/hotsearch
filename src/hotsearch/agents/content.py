@@ -103,8 +103,42 @@ class ContentAgent:
     """Orchestrate tag classification + preference scoring for a data source."""
 
     def __init__(self):
-        self.tag_engine = TagEngine()
+        self.llm = llm_for_agent("tag")
+        self.tag_engine = TagEngine(llm=self.llm)
         self.scorer = ScoringService()
+
+    def _llm_refine(self, item: dict) -> None:
+        """Ask LLM to refine score by -20..+20. Mutates item in-place."""
+        title = item.get("title", "")
+        tags = item.get("tags", [])
+        current_score = item.get("score", 0)
+        preference = _templates.get("preference", "")
+
+        prompt = (
+            f"标题：{title}\n"
+            f"标签：{', '.join(tags)}\n"
+            f"当前分数：{current_score}\n"
+            f"用户偏好：\n{preference}\n\n"
+            "请根据标题内容、标签和用户偏好，判断当前分数是否需要调整。"
+            "只输出一个整数（范围 -20 到 +20），表示对当前分数的修正值。"
+            "正值表示加分，负值表示减分，0 表示无需调整。"
+        )
+        messages = [
+            {"role": "system", "content": "你是内容评分助手。只输出一个整数。"},
+            {"role": "user", "content": prompt},
+        ]
+        try:
+            raw = self.llm.chat(messages, max_tokens=64)
+            text = raw.strip().strip("`").replace("json", "").strip()
+            adjustment = int(text)
+            adjustment = max(-20, min(20, adjustment))
+            new_score = max(0, min(100, current_score + adjustment))
+            item["score"] = new_score
+            item["llm_refined"] = True
+            _log.debug("llm_refine %r: %d -> %d (%+d)", title, current_score, new_score, adjustment)
+        except Exception as e:
+            _log.warning("llm_refine failed for %r: %s", title, e)
+            item["llm_refined"] = False
 
     def run(self, source: str) -> dict:
         """Load raw data, classify, score, save. Returns scored data dict."""
@@ -132,9 +166,15 @@ class ContentAgent:
                 self.scorer.score(item)
                 all_items.append(item)
 
+        # Step 3: LLM refinement for high-score items
+        threshold = self.scorer.llm_refine_threshold
+        for item in all_items:
+            if item.get("score", 0) >= threshold:
+                self._llm_refine(item)
+
         deep, regular, discard = self.scorer.classify_by_score(all_items)
 
-        # Step 3: Save
+        # Step 4: Save
         scored_data = {
             "mode": mode,
             "name": name,
