@@ -50,6 +50,13 @@ _is_trends_task() {
 }
 
 case "$1" in
+    all)
+        for mode in $(_trends_tasks); do
+            _step_log "step1_collect" "$mode" "src/hotsearch/services/trends.py" "$mode"
+            _step_log "step2_content" "$mode" "src/hotsearch/agents/content.py" --source "$mode"
+        done
+        _step_log "step3_summary" "all" "src/hotsearch/agents/summary.py" --source all --send
+        ;;
     feeds)
         SCRIPT="$(_script_for_task "$1")"
         _step_log "step1_feeds"   "feeds" "$SCRIPT"

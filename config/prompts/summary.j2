@@ -1,16 +1,18 @@
-# {{ name }} {{ time }}
+# Anya {{ period }}报 {{ time }}
 
-## 🔥 深度关注（{{ deep_items|length }}条）
+## 🔥 重点关注（{{ deep_items|length }}条）
 {% for item in deep_items %}
-- {{ item.title }}  [{{ item.score }}分]
+- **{{ item.title }}** [{{ item.score }}分 / {{ item.source }}]
   {% if item.search_context %}🔍 {{ item.search_context }}{% endif %}
   {{ item.url }}
 {% endfor %}
 
-## 📋 常规浏览（{{ regular_items|length }}条）
-{% for item in regular_items %}
-- {{ item.title }}  [{{ item.score }}分]
+## 📋 简报（{{ brief_items|length }}条）
+{% for item in brief_items %}
+- {{ item.title }} [{{ item.score }}分 / {{ item.source }}]
 {% endfor %}
 
 ## 📊 统计
-本次采集 {{ total }} 条，推送 {{ sent }} 条，丢弃 {{ discarded }} 条
+采集 {{ total }} 条 | 推送 {{ sent }} 条 | 丢弃 {{ discarded }} 条
+{% for s in stats %}- {{ s.source }}: {{ s.count }}条, 均分{{ s.avg }}
+{% endfor %}

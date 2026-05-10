@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
 Summary agent: search enrichment + template rendering + Feishu delivery.
+Supports single source or --source all for combined briefing.
 
 Usage:
     python3 -m hotsearch.agents.summary --source zhihu --send
+    python3 -m hotsearch.agents.summary --source all --send
 """
 
 import argparse
@@ -13,12 +15,20 @@ from datetime import datetime
 
 import jinja2
 
-from hotsearch import CACHE_CRON_DIR, OUTPUT_DIR, PROJECT_ROOT
+from hotsearch import CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
 from hotsearch.tools.system.feishu_send import send_to_feishu
 
 _log = get_logger("summary")
+
+
+def _detail_threshold() -> int:
+    import json as _json
+    path = CONFIG_DIR / "preference.json"
+    if path.exists():
+        return _json.loads(path.read_text(encoding="utf-8")).get("detail_threshold", 80)
+    return 80
 
 
 class SummaryAgent:
@@ -31,57 +41,123 @@ class SummaryAgent:
         )
 
     def run(self, source: str, send: bool = False) -> str:
-        """Load scored data, enrich, render, optionally send. Returns formatted text."""
+        if source == "all":
+            return self._run_all(send)
+        return self._run_single(source, send)
+
+    def _run_single(self, source: str, send: bool) -> str:
         scored = self._load_scored(source)
         if scored is None:
             _log.error("no scored data for %s", source)
             sys.exit(1)
+        return self._render_and_send(source, [scored], send)
 
-        mode = scored.get("mode", source)
-        name = scored.get("name", mode)
-        total = scored.get("total", 0)
-
-        deep = scored.get("deep", [])
-        regular = scored.get("regular", [])
-        discard = scored.get("discard", [])
-
-        # Enrich deep items with search context
-        for item in deep:
+    def _run_all(self, send: bool) -> str:
+        """Load all scored data, combine, render one briefing."""
+        all_scored = []
+        for path in sorted(CACHE_CRON_DIR.glob("*_scored_*.json")):
             try:
-                self.searcher.enrich_item(item)
-            except Exception as e:
-                _log.warning("enrich failed for '%s': %s", item.get("title", ""), e)
+                data = json.loads(path.read_text(encoding="utf-8"))
+                # Only take the latest per source
+                mode = data.get("mode", "")
+                if mode and not any(s.get("mode") == mode for s in all_scored):
+                    all_scored.append(data)
+            except Exception:
+                continue
 
-        # Render
-        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if not all_scored:
+            _log.error("no scored data found")
+            sys.exit(1)
+
+        # Sort by source name for consistent ordering
+        all_scored.sort(key=lambda s: s.get("mode", ""))
+
+        return self._render_and_send("all", all_scored, send)
+
+    def _render_and_send(self, source: str, scored_list: list[dict], send: bool) -> str:
+        """Combine scored data, enrich high-score items, render, save, send."""
+        now = datetime.now()
+        ts = now.strftime("%Y%m%d_%H%M")
+        time_str = now.strftime("%Y-%m-%d %H:%M")
+        hour = now.hour
+        period = "早" if 5 <= hour < 12 else ("晚" if 17 <= hour < 23 else "快")
+
+        # Combine all items with source label
+        all_items = []
+        stats = []
+        for scored in scored_list:
+            mode = scored.get("mode", "")
+            name = scored.get("name", mode)
+            deep = scored.get("deep", [])
+            regular = scored.get("regular", [])
+            combined = deep + regular
+            for item in combined:
+                item["source"] = name
+            all_items.extend(combined)
+            scores = [i.get("score", 0) for i in combined]
+            stats.append({
+                "source": name,
+                "count": len(combined),
+                "avg": sum(scores) // len(scores) if scores else 0,
+            })
+
+        # Split by threshold: >=90 detailed enrichment, <90 brief
+        deep_items = []
+        brief_items = []
+        for item in all_items:
+            if item.get("score", 0) >= _detail_threshold():
+                try:
+                    self.searcher.enrich_item(item)
+                except Exception as e:
+                    _log.warning("enrich failed '%s': %s", item.get("title", ""), e)
+                deep_items.append(item)
+            else:
+                brief_items.append(item)
+
+        # Sort deep by score desc, brief by score desc
+        deep_items.sort(key=lambda i: i.get("score", 0), reverse=True)
+        brief_items.sort(key=lambda i: i.get("score", 0), reverse=True)
+
+        total = len(all_items)
+        discarded = sum(len(s.get("discard", [])) for s in scored_list)
+
         text = self._jinja.get_template("summary.j2").render(
-            name=name,
-            time=now,
-            deep_items=deep,
-            regular_items=regular,
+            period=period,
+            time=time_str,
+            deep_items=deep_items,
+            brief_items=brief_items,
             total=total,
-            sent=len(deep) + len(regular),
-            discarded=len(discard),
+            sent=total,
+            discarded=discarded,
+            stats=stats,
         )
 
-        # Truncate for Feishu (4000 char limit)
+        # Truncate for Feishu
         if len(text) > 4000:
             text = text[:3950] + "\n\n... (截断)"
 
-        # Save final output
-        ts = datetime.now().strftime("%Y%m%d_%H%M")
-        out_path = OUTPUT_DIR / f"{mode}_final_{ts}.md"
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(text, encoding="utf-8")
+        # Save to cache/summary/ (structured JSON for later query)
+        CACHE_SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
+        summary_json = {
+            "period": period,
+            "time": time_str,
+            "timestamp": now.timestamp(),
+            "deep": deep_items,
+            "brief": brief_items,
+            "stats": stats,
+            "total": total,
+            "discarded": discarded,
+        }
+        json_path = CACHE_SUMMARY_DIR / f"summary_{ts}.json"
+        json_path.write_text(json.dumps(summary_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        _log.info(
-            "%s: %d deep, %d regular, %d discarded, sent=%s",
-            mode,
-            len(deep),
-            len(regular),
-            len(discard),
-            send,
-        )
+        # Save formatted output to outputs/
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        md_path = OUTPUT_DIR / f"summary_{ts}.md"
+        md_path.write_text(text, encoding="utf-8")
+
+        _log.info("all: %d deep, %d brief, %d sources, sent=%s",
+                   len(deep_items), len(brief_items), len(scored_list), send)
 
         if send:
             print(text)
@@ -90,7 +166,6 @@ class SummaryAgent:
         return text
 
     def _load_scored(self, source: str) -> dict | None:
-        """Find the latest scored JSON for a mode."""
         candidates = []
         for path in CACHE_CRON_DIR.glob(f"{source}_scored_*.json"):
             try:
@@ -105,10 +180,8 @@ class SummaryAgent:
 
 def main():
     ap = argparse.ArgumentParser(description="Summary agent: enrich + render + send")
-    ap.add_argument("--source", required=True, help="Mode name or 'feeds'")
-    ap.add_argument(
-        "--send", action="store_true", help="Send to Feishu after rendering"
-    )
+    ap.add_argument("--source", required=True, help="Mode name, 'feeds', or 'all'")
+    ap.add_argument("--send", action="store_true", help="Send to Feishu after rendering")
     args = ap.parse_args()
 
     agent = SummaryAgent()
