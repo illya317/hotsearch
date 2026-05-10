@@ -177,8 +177,8 @@ class SearchService:
     def _format_context(self, results: list[dict]) -> str:
         lines = []
         for r in results[:3]:
-            title = _clean_text(r.get("title", ""))[:80]
-            snippet = _clean_text(r.get("snippet", ""))
+            title = self._clean_text(r.get("title", ""))[:80]
+            snippet = self._clean_text(r.get("snippet", ""))
             if snippet and len(snippet) > 30:
                 lines.append(f"  · {title}\n    {snippet[:120]}")
             elif snippet:
@@ -195,10 +195,10 @@ class SearchService:
         path.write_text(payload, encoding="utf-8")
         return path
 
-
-def _clean_text(text: str) -> str:
-    """Remove HTML entities and normalize whitespace in search result text."""
-    import re
-    text = re.sub(r"&[a-z]+;", "", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        """Remove HTML entities and normalize whitespace in search result text."""
+        import re
+        text = re.sub(r"&[a-z]+;", "", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
