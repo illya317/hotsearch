@@ -18,7 +18,7 @@ from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
 from hotsearch.tools.system.feishu_send import send_to_feishu
 
-_log = get_logger(__name__)
+_log = get_logger("summary")
 
 
 class SummaryAgent:

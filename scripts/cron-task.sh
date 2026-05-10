@@ -34,6 +34,15 @@ done
 
 LOG="$(_cron_json log)"
 mkdir -p "$(dirname "$LOG")"
+TS=$(date +%Y%m%d_%H%M)
+
+# 写日志：同时写入聚合日志和按步骤按时间戳的独立日志
+_step_log() {
+    local step="$1" mode="$2" script="$3"; shift 3
+    local step_log="logs/${TS}_${step}_${mode}.log"
+    echo "[$(date '+%H:%M:%S')] ${step}: ${mode}" | tee -a "$LOG" "$step_log"
+    ./scripts/run.sh "$script" "$@" 2>&1 | tee -a "$LOG" "$step_log"
+}
 
 # 检查参数是否在 trends 中
 _is_trends_task() {
@@ -43,26 +52,20 @@ _is_trends_task() {
 case "$1" in
     feeds)
         SCRIPT="$(_script_for_task "$1")"
-        # Step 1: 数据采集
-        ./scripts/run.sh "$SCRIPT" >> "$LOG"
-        ./scripts/run.sh "src/hotsearch/services/feeds.py" >> "$LOG"
-        # Step 2: 分类+打分
-        ./scripts/run.sh "src/hotsearch/agents/content.py" --source feeds >> "$LOG"
-        # Step 3: 搜索增强+渲染+推送
-        ./scripts/run.sh "src/hotsearch/agents/summary.py" --source feeds --send >> "$LOG"
+        _step_log "step1_feeds"   "feeds" "$SCRIPT"
+        _step_log "step1_collect" "feeds" "src/hotsearch/services/feeds.py"
+        _step_log "step2_content" "feeds" "src/hotsearch/agents/content.py" --source feeds
+        _step_log "step3_summary" "feeds" "src/hotsearch/agents/summary.py" --source feeds --send
         ;;
     status)
         SCRIPT="$(_script_for_task "$1")"
-        ./scripts/run.sh "$SCRIPT" >> "$LOG"
+        _step_log "step1_status" "status" "$SCRIPT"
         ;;
     *)
         if _is_trends_task "$1"; then
-            # Step 1: 数据采集
-            ./scripts/run.sh "src/hotsearch/services/trends.py" "$@" >> "$LOG"
-            # Step 2: 分类+打分
-            ./scripts/run.sh "src/hotsearch/agents/content.py" --source "$1" >> "$LOG"
-            # Step 3: 搜索增强+渲染+推送
-            ./scripts/run.sh "src/hotsearch/agents/summary.py" --source "$1" --send >> "$LOG"
+            _step_log "step1_collect" "$1" "src/hotsearch/services/trends.py" "$@"
+            _step_log "step2_content" "$1" "src/hotsearch/agents/content.py" --source "$1"
+            _step_log "step3_summary" "$1" "src/hotsearch/agents/summary.py" --source "$1" --send
         else
             echo "Usage: $0 {feeds|status|$(_trends_tasks | tr '\n' '|' | sed 's/|$//')}" >&2
             exit 1

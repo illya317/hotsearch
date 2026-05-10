@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from hotsearch import CACHE_SEARCH_DIR, CONFIG_DIR
 from hotsearch.tools.logger import get_logger
 
-_log = get_logger(__name__)
+_log = get_logger("search")
 
 
 def _load_domain_filters() -> tuple[set[str], set[str]]:

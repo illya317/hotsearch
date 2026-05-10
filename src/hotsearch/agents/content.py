@@ -23,7 +23,7 @@ from hotsearch.services.trends import TrendsService
 from hotsearch.tools.logger import get_logger
 from hotsearch.tools.tag import TAG_RULES, classify
 
-_log = get_logger(__name__)
+_log = get_logger("content")
 
 _templates = prompt_templates()
 _jinja_env = jinja2.Environment(loader=jinja2.DictLoader(_templates))
