@@ -31,15 +31,6 @@ llm:
   # Use "provider" + "model" for a single client,
   # or "chain" for a custom fallback sequence.
   agents:
-    tag:
-      provider: minimax
-      model: MiniMax-M2.7-highspeed
     search:
-      provider: kimi
-      model: kimi-for-coding
-    preference:
-      provider: minimax
-      model: MiniMax-M2.7-highspeed
-    main:
       provider: kimi
       model: kimi-for-coding
