@@ -59,3 +59,35 @@
 2026-05-10 21:39:41 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
 2026-05-10 21:41:56 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
 2026-05-10 21:42:02 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
+2026-05-10 21:58:16 | INFO     | content | zhihu: 5 tagged, 0 uncertain, scored [0-50]
+2026-05-10 21:58:27 | INFO     | content | weibo: 5 tagged, 0 uncertain, scored [0-50]
+2026-05-10 21:58:28 | WARNING  | content | llm_refine failed for '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': invalid literal for int() with base 10: ''
+2026-05-10 21:58:30 | WARNING  | content | llm_refine failed for '伊朗已回应美国提出的结束战争方案': invalid literal for int() with base 10: ''
+2026-05-10 21:58:30 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [50-100]
+2026-05-10 21:58:45 | WARNING  | content | llm_refine failed for '78 岁中国半导体教父张汝京最新发声：网上很多人执着于 2/3nm 尖端芯片是认知误区，80% 的市场不需要先进制程': invalid literal for int() with base 10: ''
+2026-05-10 21:58:45 | INFO     | content | ithome: 5 tagged, 1 uncertain, scored [0-65]
+2026-05-10 21:58:48 | WARNING  | content | llm_refine failed for "AI agents that hack computers and replicate themselves, and they're getting better fast": invalid literal for int() with base 10: ''
+2026-05-10 21:58:50 | WARNING  | content | llm_refine failed for 'GPT-5.5 costs 49 to 92 percent more than its predecessor, depending on the input length': invalid literal for int() with base 10: ''
+2026-05-10 21:58:50 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [50-70]
+2026-05-10 21:59:12 | WARNING  | content | llm_refine failed for 'EvoLinkAI/awesome-gpt-image-2-API-and-Prompts': invalid literal for int() with base 10: ''
+2026-05-10 21:59:12 | INFO     | content | github: 5 tagged, 3 uncertain, scored [0-70]
+2026-05-10 21:59:14 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 21:59:14 | WARNING  | summary | enrich failed '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 'search_summarize' not found in search path: '/Users/koito/Desktop/Project/hotsearch/config/prompts'
+2026-05-10 21:59:14 | INFO     | summary | all: 1 deep, 28 brief, 6 sources, sent=True
+2026-05-10 22:00:59 | INFO     | search | search 'test cache query 12345': 4 results from ['tavily', 'exa']
+2026-05-10 22:00:59 | INFO     | search | search 'test cache query 12345': 2 results from cache
+2026-05-10 22:16:28 | INFO     | content | zhihu: 5 tagged, 1 uncertain, scored [0-50]
+2026-05-10 22:16:53 | INFO     | content | weibo: 5 tagged, 4 uncertain, scored [0-0]
+2026-05-10 22:16:55 | WARNING  | content | llm_refine failed for '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': invalid literal for int() with base 10: ''
+2026-05-10 22:16:58 | WARNING  | content | llm_refine failed for '伊朗已回应美国提出的结束战争方案': invalid literal for int() with base 10: ''
+2026-05-10 22:16:58 | INFO     | content | eastmoney: 5 tagged, 0 uncertain, scored [50-100]
+2026-05-10 22:17:18 | WARNING  | content | llm_refine failed for '78 岁中国半导体教父张汝京最新发声：网上很多人执着于 2/3nm 尖端芯片是认知误区，80% 的市场不需要先进制程': invalid literal for int() with base 10: ''
+2026-05-10 22:17:18 | INFO     | content | ithome: 5 tagged, 3 uncertain, scored [0-65]
+2026-05-10 22:17:22 | WARNING  | content | llm_refine failed for "AI agents can now hack computers and copy themselves, and they're getting better fast": invalid literal for int() with base 10: ''
+2026-05-10 22:17:24 | WARNING  | content | llm_refine failed for 'GPT-5.5 costs 49 to 92 percent more than its predecessor, depending on the input length': invalid literal for int() with base 10: ''
+2026-05-10 22:17:24 | INFO     | content | ainews: 5 tagged, 0 uncertain, scored [50-70]
+2026-05-10 22:17:49 | WARNING  | content | llm_refine failed for 'EvoLinkAI/awesome-gpt-image-2-API-and-Prompts': invalid literal for int() with base 10: ''
+2026-05-10 22:17:49 | INFO     | content | github: 5 tagged, 3 uncertain, scored [0-70]
+2026-05-10 22:17:50 | INFO     | search | search '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 6 results from ['tavily', 'exa']
+2026-05-10 22:17:50 | WARNING  | summary | enrich failed '全球市场：纳指、标普再创历史新高 存储芯片股大涨 现货白银涨超2%': 'search_summarize' not found in search path: '/Users/koito/Desktop/Project/hotsearch/config/prompts'
+2026-05-10 22:17:50 | INFO     | summary | all: 1 deep, 16 brief, 6 sources, sent=True

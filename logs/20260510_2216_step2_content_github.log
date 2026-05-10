@@ -1,0 +1,4 @@
+[22:17:25] step2_content: github
+2026-05-10 22:17:49 | WARNING  | content | llm_refine failed for 'EvoLinkAI/awesome-gpt-image-2-API-and-Prompts': invalid literal for int() with base 10: ''
+2026-05-10 22:17:49 | INFO     | content | github: 5 tagged, 3 uncertain, scored [0-70]
+/Users/koito/Desktop/Project/hotsearch/data/cache/cron/github_scored_20260510_2217.json
