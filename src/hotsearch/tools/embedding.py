@@ -20,6 +20,7 @@ def _get_model():
         from sentence_transformers import SentenceTransformer
 
         _Model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+        _Model.max_seq_length = 512
     return _Model
 
 
