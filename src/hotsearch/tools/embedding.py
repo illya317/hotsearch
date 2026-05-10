@@ -1,4 +1,4 @@
-"""Embedding tool: BAAI/bge-m3 for semantic similarity."""
+"""Embedding tool: BAAI/bge-small-zh-v1.5 for semantic similarity."""
 
 import hashlib
 from typing import cast
@@ -15,12 +15,12 @@ def _get_model():
     if _Model is None:
         from sentence_transformers import SentenceTransformer
 
-        _Model = SentenceTransformer("BAAI/bge-m3")
+        _Model = SentenceTransformer("BAAI/bge-small-zh-v1.5")
     return _Model
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    """Return 1024-dim embedding vectors for a list of texts."""
+    """Return 512-dim embedding vectors for a list of texts."""
     model = _get_model()
     results: list[list[float]] = []
     to_compute: list[str] = []
