@@ -114,14 +114,11 @@ class ContentAgent:
         current_score = item.get("score", 0)
         preference = _templates.get("preference", "")
 
-        prompt = (
-            f"标题：{title}\n"
-            f"标签：{', '.join(tags)}\n"
-            f"当前分数：{current_score}\n"
-            f"用户偏好：\n{preference}\n\n"
-            "请根据标题内容、标签和用户偏好，判断当前分数是否需要调整。"
-            "只输出一个整数（范围 -20 到 +20），表示对当前分数的修正值。"
-            "正值表示加分，负值表示减分，0 表示无需调整。"
+        prompt = _jinja_env.get_template("llm_refine").render(
+            title=title,
+            tags=", ".join(tags),
+            current_score=current_score,
+            preference=preference,
         )
         messages = [
             {"role": "system", "content": "你是内容评分助手。只输出一个整数。"},
