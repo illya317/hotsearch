@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scoring service: compute weight scores for tagged items."""
+"""Scoring service: compute weight scores for tagged items using tags + embeddings."""
 
 import json
 import re
@@ -9,26 +9,36 @@ from hotsearch.config import prompt_templates
 
 
 class ScoringService:
-    """Pure algorithm: score items based on tags + keywords + source + rules."""
+    """Pure algorithm: score items based on tag weights + embedding similarity."""
 
     def __init__(self):
         self.rules = self._load_scoring_rules()
         self.deep_dive_triggers = self._parse_deep_dive_triggers()
+        self._top_tags = self._compute_top_tags()
+        self._pref_text = prompt_templates().get("preference", "")
+        self._pref_vec: list[float] | None = None
 
     def _load_scoring_rules(self) -> dict:
         path = CONFIG_DIR / "scoring_rules.json"
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))
         return {
-            "tag_base": {},
-            "keyword_bonus": {},
-            "keyword_penalty": {},
-            "source_bonus": {},
+            "tags": {},
+            "top_tags_count": 4,
+            "top_deep_count": 5,
+            "top_brief_count": 10,
+            "embedding_weight": 0.3,
             "llm_refine_threshold": 60,
-            "detail_threshold": 80,
+            "detail_threshold": 70,
             "high_threshold": 70,
             "low_threshold": 30,
         }
+
+    def _compute_top_tags(self) -> set[str]:
+        tags = self.rules.get("tags", {})
+        count = self.rules.get("top_tags_count", 4)
+        sorted_tags = sorted(tags.items(), key=lambda x: x[1], reverse=True)
+        return set(name for name, _ in sorted_tags[:count])
 
     def _parse_deep_dive_triggers(self) -> set[str]:
         """Parse deep-dive triggers from config/prompts/preference.md."""
@@ -51,43 +61,51 @@ class ScoringService:
                     triggers.add(keyword)
         return triggers
 
+    def _get_pref_vec(self) -> list[float]:
+        if self._pref_vec is None:
+            from hotsearch.tools.embedding import embed
+
+            self._pref_vec = embed([self._pref_text])[0]
+        return self._pref_vec
+
     def score(self, item: dict) -> int:
         """Compute score for a single tagged item. Mutates item in-place."""
         tags = item.get("tags", [])
         title = item.get("title", "")
-        score = 0
+        tag_weights = self.rules.get("tags", {})
 
-        # 1. Tag base scores (sum for multi-tag)
-        tag_base = self.rules.get("tag_base", {})
-        for tag in tags:
-            score += tag_base.get(tag, 0)
+        # Step A: max tag weight among item's tags
+        tag_score = max((tag_weights.get(tag, 0) for tag in tags), default=0)
 
-        # 2. Keyword bonuses
-        title_lower = title.lower()
-        for keyword, bonus in self.rules.get("keyword_bonus", {}).items():
-            if keyword.lower() in title_lower:
-                score += bonus
+        # Step B: top-N tag filter
+        if not any(tag in self._top_tags for tag in tags):
+            item["score"] = 0
+            return 0
 
-        # 3. Keyword penalties
-        for keyword, penalty in self.rules.get("keyword_penalty", {}).items():
-            if keyword.lower() in title_lower:
-                score += penalty
+        # Step C: embedding similarity
+        try:
+            from hotsearch.tools.embedding import embed, similarity
 
-        # 4. Source bonus
-        source_name = item.get("source_name", "")
-        source = item.get("source", "")
-        for src_key, bonus in self.rules.get("source_bonus", {}).items():
-            if src_key in source_name or src_key in source:
-                score += bonus
+            title_vec = embed([title])[0]
+            pref_vec = self._get_pref_vec()
+            sim = similarity(title_vec, pref_vec)
+            similarity_score = (sim + 1) / 2 * 100  # [-1, 1] -> [0, 100]
+        except Exception:
+            similarity_score = 50  # neutral fallback
 
-        # 5. Deep dive flag
+        # Step D: weighted combination
+        w = self.rules.get("embedding_weight", 0.3)
+        final = tag_score * (1 - w) + similarity_score * w
+
+        # Step E: clamp
+        final = max(0, min(100, final))
+        item["score"] = int(final)
+
+        # Deep dive flag
         if self._match_deep_dive(title, tags):
             item["deep_dive"] = True
 
-        # Clamp to [0, 100]
-        score = max(0, min(100, score))
-        item["score"] = score
-        return score
+        return item["score"]
 
     def _match_deep_dive(self, title: str, tags: list[str]) -> bool:
         for trigger in self.deep_dive_triggers:
@@ -98,6 +116,14 @@ class ScoringService:
     @property
     def llm_refine_threshold(self) -> int:
         return self.rules.get("llm_refine_threshold", 60)
+
+    @property
+    def top_deep_count(self) -> int:
+        return self.rules.get("top_deep_count", 5)
+
+    @property
+    def top_brief_count(self) -> int:
+        return self.rules.get("top_brief_count", 10)
 
     def classify_by_score(
         self, items: list[dict]
