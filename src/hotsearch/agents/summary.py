@@ -81,7 +81,7 @@ class SummaryAgent:
         if not raw_context or not raw_context.strip():
             return ""
 
-        prompt = self._jinja.get_template("search_summarize").render(
+        prompt = self._jinja.get_template("search_summarize.j2").render(
             title=title, raw_context=raw_context
         )
         try:

@@ -140,7 +140,13 @@ class ContentAgent:
         try:
             raw = self.llm.chat(messages, max_tokens=64)
             text = raw.strip().strip("`").replace("json", "").strip()
-            adjustment = int(text)
+            # Extract first integer from response
+            m = __import__("re").search(r"-?\d+", text)
+            if m:
+                adjustment = int(m.group())
+            else:
+                adjustment = 0
+                _log.debug("llm_refine empty response for %r, treating as 0", title)
             adjustment = max(-20, min(20, adjustment))
             new_score = max(0, min(100, current_score + adjustment))
             item["score"] = new_score
