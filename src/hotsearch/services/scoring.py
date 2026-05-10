@@ -78,6 +78,16 @@ class ScoringService:
             if tag in self.rules["interests"]:
                 score += self.params["interest_bonus"]
 
+        # Also check title keywords against auto_keep / auto_discard
+        for kw in self.rules["auto_keep"]:
+            if kw in title:
+                score += self.params["keep_bonus"]
+                break
+        for kw in self.rules["auto_discard"]:
+            if kw in title:
+                score -= self.params["discard_penalty"]
+                break
+
         if self._match_deep_dive(title, tags):
             item["deep_dive"] = True
 
