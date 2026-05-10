@@ -117,7 +117,7 @@ class SummaryAgent:
         ts = now.strftime("%Y%m%d_%H%M")
         time_str = now.strftime("%Y-%m-%d %H:%M")
         hour = now.hour
-        period = "早" if 5 <= hour < 12 else ("晚" if 17 <= hour < 23 else "快")
+        period = "早" if 5 <= hour < 12 else ("晚" if 17 <= hour < 23 else "报")
 
         # Combine all items with source label
         all_items = []
@@ -219,9 +219,9 @@ class SummaryAgent:
                 "items": items,
             }, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        _save_ranking("sim", lambda i: i.get("sim_score", 0))
-        _save_ranking("combined", lambda i: i.get("combined_score", 0))
-        _save_ranking("final", lambda i: i.get("score", 0))
+        _save_ranking("raw", lambda i: i.get("sim_score", 0))
+        _save_ranking("weighted", lambda i: i.get("combined_score", 0))
+        _save_ranking("llm", lambda i: i.get("score", 0))
 
         _log.info("all: %d deep, %d brief, %d sources, sent=%s",
                    len(deep_items), len(brief_items), len(scored_list), send)
