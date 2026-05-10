@@ -1,4 +1,4 @@
-"""Embedding tool: BAAI/bge-m3 for semantic similarity. Disk cache at data/embeddings/."""
+"""Embedding tool: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 for semantic similarity. Disk cache at data/embeddings/."""
 
 import hashlib
 import json
@@ -19,7 +19,7 @@ def _get_model():
     if _Model is None:
         from sentence_transformers import SentenceTransformer
 
-        _Model = SentenceTransformer("BAAI/bge-m3")
+        _Model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     return _Model
 
 
