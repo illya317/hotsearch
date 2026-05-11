@@ -112,8 +112,32 @@ def prune_feeds(days: int, dry_run: bool):
     print(f"{action} {total} total feed entries (>{days}d)")
 
 
+def prune_trends_state(days: int, dry_run: bool):
+    """Remove expired entries from trends state file."""
+    from hotsearch.tools.trends.state import prune_state
+
+    if dry_run:
+        # prune_state doesn't support dry-run; load and count
+        from hotsearch.tools.trends.state import load_state, _is_expired
+
+        state = load_state()
+        count = 0
+        for platform, items in state.items():
+            for title, meta in items.items():
+                if isinstance(meta, dict) and _is_expired(meta.get("timestamp", 0), days):
+                    count += 1
+        print(f"Would remove {count} trend state entries (>{days}d)")
+    else:
+        count = prune_state(days)
+        if count:
+            print(f"Removed {count} trend state entries (>{days}d)")
+        else:
+            print(f"No expired trend state entries (>{days}d)")
+
+
 TARGETS = {
     "trends": prune_trends,
+    "trends_state": prune_trends_state,
     "search": prune_search,
     "feeds": prune_feeds,
 }

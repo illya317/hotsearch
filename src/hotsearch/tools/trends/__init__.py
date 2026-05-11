@@ -1,7 +1,32 @@
 import importlib
 import pkgutil
 
-from .base import TrendAdapter
+from hotsearch.tools.base import StandardItem, StandardResult, ToolAdapter
+
+
+class TrendAdapter(ToolAdapter):
+    """Base class for all trend source adapters."""
+
+    category = "trends"
+    state_file: str | None = None
+
+    def check_new(self) -> list[dict]:
+        """Check for new items and return structured notifications.
+        Each dict MUST contain:
+          - title: str
+          - summary: str
+          - timestamp: float (unix timestamp)
+        """
+        return []
+
+    def get_status(self) -> list[dict]:
+        """Return status entries for push status display."""
+        return []
+
+    def get_daily_items(self, threshold: float) -> list[dict]:
+        """Return recent items for daily summary."""
+        return []
+
 
 _TOOLS: dict[str, TrendAdapter] = {}
 _DISCOVERED = False

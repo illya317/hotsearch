@@ -24,12 +24,33 @@ import hotsearch  # noqa: E402
 CACHE_TRENDS_DIR: Path = hotsearch.CACHE_TRENDS_DIR
 PLATFORMS_CONFIG: Path = hotsearch.PLATFORMS_CONFIG
 
-from .base import StandardItem, StandardResult, TrendAdapter  # noqa: E402
+from . import TrendAdapter  # noqa: E402
+from hotsearch.tools.base import StandardItem, StandardResult  # noqa: E402
 
 
 class HotsearchAdapter(TrendAdapter):
     name = "hotsearch"
     tags = ["social", "hot"]
+    state_file = "trends_state.json"
+
+    def check_new(self) -> list[dict]:
+        from hotsearch.tools.trends.state import get_new_items
+
+        new_items = []
+        for platform in PLATFORMS:
+            try:
+                items = fetch_hotsearch(platform, limit=10)
+                fresh = get_new_items(platform, items)
+                for item in fresh:
+                    new_items.append({
+                        "title": item["title"],
+                        "summary": f"{PLATFORMS[platform]['display_name']} #{item.get('rank', '')}",
+                        "timestamp": time.time(),
+                        "platform": platform,
+                    })
+            except Exception:
+                continue
+        return new_items
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)
@@ -184,7 +205,8 @@ def list_platforms():
 def main():
     args = sys.argv[1:]
     use_json = "--json" in args
-    args = [a for a in args if a != "--json"]
+    check_new = "--check-new" in args
+    args = [a for a in args if a not in ("--json", "--check-new")]
 
     if not args or args[0] in ("-h", "--help"):
         print(__doc__)
@@ -193,6 +215,16 @@ def main():
 
     if args[0] in ("-l", "--list"):
         list_platforms()
+        sys.exit(0)
+
+    if check_new:
+        adapter = HotsearchAdapter()
+        new_items = adapter.check_new()
+        if new_items:
+            for item in new_items:
+                print(f"🔥 {item['summary']}: {item['title']}")
+        else:
+            print("No new trends")
         sys.exit(0)
 
     platform = args[0]

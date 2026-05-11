@@ -29,6 +29,30 @@ RSSHUB = os.environ.get("RSSHUB", "http://localhost:1200")
 STATE_FILE = CACHE_FEEDS_DIR / "video_state.json"
 
 
+def _load_video_feeds() -> list[tuple[str, str]]:
+    path = _PROJECT_ROOT / "config" / "feeds.json"
+    if path.exists():
+        try:
+            cfg = json.loads(path.read_text(encoding="utf-8"))
+            feeds = cfg.get("video_feeds", [])
+            if feeds:
+                return [(f["name"], f"{RSSHUB}/bilibili/user/video/{f['uid']}?limit=3") for f in feeds]
+        except Exception:
+            pass
+    # fallback defaults
+    return [
+        ("军武志", f"{RSSHUB}/bilibili/user/video/435931665?limit=3"),
+        ("麻薯波比呀", f"{RSSHUB}/bilibili/user/video/703186600?limit=3"),
+        ("河畔的伯爵", f"{RSSHUB}/bilibili/user/video/1596926736?limit=3"),
+        ("空山猎人", f"{RSSHUB}/bilibili/user/video/3493108557809994?limit=3"),
+        ("小约翰可汗", f"{RSSHUB}/bilibili/user/video/23947287?limit=3"),
+        ("军情巴朗", f"{RSSHUB}/bilibili/user/video/1975692083?limit=3"),
+    ]
+
+
+VIDEO_FEEDS = _load_video_feeds()
+
+
 class VideoFeedsAdapter(FeedAdapter):
     name = "videos"
     display_name = "视频频道"
@@ -123,16 +147,6 @@ class VideoFeedsAdapter(FeedAdapter):
 
     def check_new(self) -> list[str]:
         return check_new_videos()
-
-
-VIDEO_FEEDS = [
-    ("军武志", f"{RSSHUB}/bilibili/user/video/435931665?limit=3"),
-    ("麻薯波比呀", f"{RSSHUB}/bilibili/user/video/703186600?limit=3"),
-    ("河畔的伯爵", f"{RSSHUB}/bilibili/user/video/1596926736?limit=3"),
-    ("空山猎人", f"{RSSHUB}/bilibili/user/video/3493108557809994?limit=3"),
-    ("小约翰可汗", f"{RSSHUB}/bilibili/user/video/23947287?limit=3"),
-    ("军情巴朗", f"{RSSHUB}/bilibili/user/video/1975692083?limit=3"),
-]
 
 
 def fetch_url(url: str, timeout: int = 15) -> str:

@@ -2,6 +2,20 @@
 
 独立可运行的脚本，`python3` 直接跑。大部分纯 stdout 输出，推送由 Service 层负责。
 
+## StandardItem 必备字段
+
+所有 adapter 的 `normalize()` 输出必须包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `title` | `str` | 标题 |
+| `summary` | `str \| None` | 摘要或热度描述 |
+| `timestamp` | `float` | 抓取时间（unix 时间戳） |
+| `tags` | `list[str]` | 分类标签 |
+| `source_name` | `str \| None` | 来源名称 |
+
+可选字段：`id`、`url`、`time`、`raw`
+
 ## trends/ — 热榜与趋势（整点汇报）
 
 | 文件 | 用途 |
