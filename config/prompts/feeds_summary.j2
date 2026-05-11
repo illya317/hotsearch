@@ -1,0 +1,15 @@
+追踪消息
+{%- for name, items in groups.items() %}
+
+📰 {{ name }}（{{ items|length }}条）
+{%- for item in items %}
+
+- {{ item.title }}
+{%- if item.summary %}
+  {{ item.summary }}
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
+
+---
+共 {{ total }} 条

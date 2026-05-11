@@ -15,7 +15,7 @@ from datetime import datetime
 
 import jinja2
 
-from hotsearch import CACHE_CRON_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT, RANKING_DIR
+from hotsearch import CACHE_CRON_DIR, CACHE_FEEDS_DIR, CACHE_SUMMARY_DIR, CONFIG_DIR, OUTPUT_DIR, PROJECT_ROOT, RANKING_DIR
 from hotsearch.llms import llm_for_agent
 from hotsearch.services.search import SearchService
 from hotsearch.tools.logger import get_logger
@@ -47,10 +47,87 @@ class SummaryAgent:
         )
         self._scoring_rules = _load_scoring_rules()
 
-    def run(self, source: str, send: bool = False) -> str:
+    def run(self, source: str, send: bool = False, raw: bool = False) -> str:
+        if raw:
+            return self._run_raw(source, send)
         if source == "all":
             return self._run_all(send)
         return self._run_single(source, send)
+
+    def _load_raw(self, source: str) -> dict | None:
+        """Load latest raw data for feeds or trends source."""
+        if source == "feeds":
+            from hotsearch.services.feeds import FeedsService
+            return FeedsService.load_latest()
+        else:
+            from hotsearch.services.trends import TrendsService
+            return TrendsService.load_latest(source)
+
+    def _run_raw(self, source: str, send: bool) -> str:
+        """Render and send raw items without scoring/enrichment."""
+        raw = self._load_raw(source)
+        if raw is None:
+            _log.error("no raw data for %s", source)
+            sys.exit(1)
+
+        now = datetime.now()
+        ts = now.strftime("%Y%m%d_%H%M")
+        time_str = now.strftime("%Y-%m-%d %H:%M")
+        hour = now.hour
+        period = "早" if 5 <= hour < 12 else ("晚" if 17 <= hour < 23 else "快")
+
+        # Group items by source_name
+        groups: dict[str, list[dict]] = {}
+        total = 0
+        for r in raw.get("results", []):
+            if r.get("status") != "ok":
+                continue
+            data = r.get("data", {})
+            name = data.get("source_name", r.get("source", source))
+            items = data.get("items", [])
+            if name not in groups:
+                groups[name] = []
+            groups[name].extend(items)
+            total += len(items)
+
+        # Render via template
+        stats = [{"source": name, "count": len(items)} for name, items in groups.items()]
+        self._jinja = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(str(PROJECT_ROOT / "config" / "prompts"))
+        )
+        text = self._jinja.get_template("feeds_summary.j2").render(
+            period=period,
+            time=time_str,
+            groups=groups,
+            total=total,
+        )
+
+        # Save summary cache
+        CACHE_SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
+        summary_json = {
+            "period": period,
+            "time": time_str,
+            "timestamp": now.timestamp(),
+            "source": source,
+            "mode": "raw",
+            "groups": {k: [{"title": i.get("title", "")} for i in v] for k, v in groups.items()},
+            "total": total,
+            "stats": stats,
+        }
+        json_path = CACHE_SUMMARY_DIR / f"summary_{ts}_raw.json"
+        json_path.write_text(json.dumps(summary_json, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        md_path = OUTPUT_DIR / f"summary_{ts}_raw.md"
+        md_path.write_text(text, encoding="utf-8")
+
+        _log.info("%s raw: %d items, %d groups, sent=%s", source, total, len(groups), send)
+
+        if send:
+            print(text)
+            send_to_feishu(text)
+
+        return text
 
     def _run_single(self, source: str, send: bool) -> str:
         scored = self._load_scored(source)
@@ -249,10 +326,11 @@ def main():
     ap = argparse.ArgumentParser(description="Summary agent: enrich + render + send")
     ap.add_argument("--source", required=True, help="Mode name, 'feeds', or 'all'")
     ap.add_argument("--send", action="store_true", help="Send to Feishu after rendering")
+    ap.add_argument("--raw", action="store_true", help="Skip scoring/enrichment, render raw data directly")
     args = ap.parse_args()
 
     agent = SummaryAgent()
-    agent.run(args.source, send=args.send)
+    agent.run(args.source, send=args.send, raw=args.raw)
 
 
 if __name__ == "__main__":

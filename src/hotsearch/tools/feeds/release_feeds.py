@@ -27,7 +27,38 @@ STATE_FILE = CACHE_FEEDS_DIR / "release_state.json"
 
 class ReleaseFeedsAdapter(FeedAdapter):
     name = "releases"
+    display_name = "软件仓库"
     tags = ["开源", "软件"]
+    state_file = "release_state.json"
+
+    def get_status(self) -> list[dict]:
+        state = load_state().get("releases", {})
+        results = []
+        for name, url in RELEASE_FEEDS.items():
+            release = get_latest_release(url)
+            stored_title = state.get(name, {}).get("title", "")
+            if release:
+                current_title = release["title"]
+                status = "✅已最新" if current_title == stored_title else "🆕有更新"
+                title = current_title[:40] + "..." if len(current_title) > 40 else current_title
+            else:
+                status = "❌"
+                title = "(获取失败)"
+            results.append({"name": name, "title": title, "status": status})
+        return results
+
+    def get_daily_items(self, threshold: float) -> list[dict]:
+        state = load_state().get("releases", {})
+        recent = []
+        for name, val in state.items():
+            if isinstance(val, dict) and val.get("timestamp", 0) >= threshold:
+                recent.append({
+                    "name": name,
+                    "title": val.get("title", ""),
+                    "time": val.get("time", ""),
+                    "timestamp": val.get("timestamp", 0),
+                })
+        return recent
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)

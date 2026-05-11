@@ -63,9 +63,9 @@ class ScoringService:
 
     def _get_pref_vec(self) -> list[float]:
         if self._pref_vec is None:
-            from hotsearch.tools.embedding import embed
+            from hotsearch.tools.embedding import embed_doc
 
-            self._pref_vec = embed([self._pref_text])[0]
+            self._pref_vec = embed_doc([self._pref_text])[0]
         return self._pref_vec
 
     def score(self, item: dict) -> int:
@@ -84,9 +84,9 @@ class ScoringService:
 
         # Step C: embedding similarity
         try:
-            from hotsearch.tools.embedding import embed, similarity
+            from hotsearch.tools.embedding import embed_query, similarity
 
-            title_vec = embed([title])[0]
+            title_vec = embed_query([title])[0]
             pref_vec = self._get_pref_vec()
             sim = similarity(title_vec, pref_vec)
             similarity_score = (sim + 1) / 2 * 100  # [-1, 1] -> [0, 100]

@@ -3,7 +3,8 @@
   "tasks": {
     "feeds": {
       "script": "src/hotsearch/services/feeds.py",
-      "schedule": "7 * * * *"
+      "schedule": "0 * * * *",
+      "ranking": false
     },
     "status": {
       "script": "src/hotsearch/tools/system/server-status.py",

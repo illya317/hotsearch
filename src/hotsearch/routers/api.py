@@ -163,18 +163,6 @@ class APIHandler(BaseHTTPRequestHandler):
                 key, lambda: FeedsService().collect(sources=["releases"]), refresh
             )
 
-        if path == "/laws":
-            key = "laws"
-            return self._cached(
-                key, lambda: FeedsService().collect(sources=["laws"]), refresh
-            )
-
-        if path == "/laws/shanghai":
-            key = "laws:shanghai"
-            return self._cached(
-                key, lambda: FeedsService().collect(sources=["laws_shanghai"]), refresh
-            )
-
         # --- daily summary ---
         if path == "/daily":
             period = params.get("period", ["24h"])[0]
@@ -224,71 +212,20 @@ class APIHandler(BaseHTTPRequestHandler):
             "feeds": {},
         }
 
-        # Videos
-        video_path = CACHE_FEEDS_DIR / "video_state.json"
-        if video_path.exists():
-            try:
-                data = json.loads(video_path.read_text())
-                recent = []
-                for name, val in data.get("videos", {}).items():
-                    if isinstance(val, dict) and _is_recent(val.get("timestamp", 0)):
-                        recent.append(
-                            {
-                                "name": name,
-                                "title": val.get("title"),
-                                "time": val.get("time"),
-                                "timestamp": val.get("timestamp"),
-                            }
-                        )
-                result["feeds"]["videos"] = recent
-            except Exception:
-                result["feeds"]["videos"] = []
+        # Auto-discover feeds state
+        from hotsearch.tools.feeds import get_tools
 
-        # Releases
-        release_path = CACHE_FEEDS_DIR / "release_state.json"
-        if release_path.exists():
+        for tool in get_tools():
+            if not tool.state_file:
+                continue
             try:
-                data = json.loads(release_path.read_text())
-                recent = []
-                for name, val in data.get("releases", {}).items():
-                    if isinstance(val, dict) and _is_recent(val.get("timestamp", 0)):
-                        recent.append(
-                            {
-                                "name": name,
-                                "title": val.get("title"),
-                                "time": val.get("time"),
-                                "timestamp": val.get("timestamp"),
-                            }
-                        )
-                result["feeds"]["releases"] = recent
+                recent = [
+                    item for item in tool.get_daily_items(threshold.timestamp())
+                    if _is_recent(item.get("timestamp", 0))
+                ]
+                result["feeds"][tool.name] = recent
             except Exception:
-                result["feeds"]["releases"] = []
-
-        # Laws
-        for key, filename in [
-            ("laws", "newlaw_last.json"),
-            ("laws_shanghai", "newlaw_shanghai_last.json"),
-        ]:
-            law_path = CACHE_FEEDS_DIR / filename
-            if law_path.exists():
-                try:
-                    data = json.loads(law_path.read_text())
-                    if isinstance(data, dict):
-                        ts = data.get("timestamp", 0)
-                        if _is_recent(ts):
-                            result["feeds"][key] = {
-                                "time": data.get("time"),
-                                "timestamp": ts,
-                                "count": len(data.get("laws", [])),
-                            }
-                        else:
-                            result["feeds"][key] = None
-                    else:
-                        result["feeds"][key] = None
-                except Exception:
-                    result["feeds"][key] = None
-            else:
-                result["feeds"][key] = None
+                result["feeds"][tool.name] = []
 
         return result
 
@@ -298,11 +235,9 @@ class APIHandler(BaseHTTPRequestHandler):
             "/ainews?source=all|decoder|hn|tc&limit=5",
             "/github-trending?limit=10",
             "/trends?sources=hotsearch,github,ainews&tag=AI,tech,social",
-            "/feeds?sources=videos,releases,laws,laws_shanghai",
+            "/feeds?sources=videos,releases",
             "/videos",
             "/releases",
-            "/laws",
-            "/laws/shanghai",
             "/daily?period=<N>h|<N>d",
             "/health",
         ]

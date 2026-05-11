@@ -22,6 +22,11 @@ _script_for_task() {
     python3 -c "import json; cfg=json.load(open('$CRON_CONFIG')); print(cfg['tasks']['$1']['script'])"
 }
 
+# 读取指定任务的任意字段（默认空字符串）
+_task_field() {
+    python3 -c "import json; cfg=json.load(open('$CRON_CONFIG')); print(cfg.get('tasks',{}).get('$1',{}).get('$2',''))"
+}
+
 # 读取 cron.json 中的 trends 任务名列表
 _trends_tasks() {
     python3 -c "import json; cfg=json.load(open('$CRON_CONFIG')); print('\n'.join(cfg.get('trends',{}).keys()))"
@@ -61,8 +66,13 @@ case "$1" in
         SCRIPT="$(_script_for_task "$1")"
         _step_log "step1_feeds"   "feeds" "$SCRIPT"
         _step_log "step1_collect" "feeds" "src/hotsearch/services/feeds.py"
-        _step_log "step2_content" "feeds" "src/hotsearch/agents/content.py" --source feeds
-        _step_log "step3_summary" "feeds" "src/hotsearch/agents/summary.py" --source feeds --send
+        RANKING="$(_task_field feeds ranking)"
+        if [ "$RANKING" = "false" ] || [ "$RANKING" = "False" ]; then
+            _step_log "step3_summary" "feeds" "src/hotsearch/agents/summary.py" --source feeds --raw --send
+        else
+            _step_log "step2_content" "feeds" "src/hotsearch/agents/content.py" --source feeds
+            _step_log "step3_summary" "feeds" "src/hotsearch/agents/summary.py" --source feeds --send
+        fi
         ;;
     status)
         SCRIPT="$(_script_for_task "$1")"

@@ -29,7 +29,44 @@ STATE_FILE = CACHE_FEEDS_DIR / "video_state.json"
 
 class VideoFeedsAdapter(FeedAdapter):
     name = "videos"
+    display_name = "视频频道"
     tags = ["视频", "娱乐"]
+    state_file = "video_state.json"
+
+    def get_status(self) -> list[dict]:
+        state = load_state().get("videos", {})
+        results = []
+        for name, url in VIDEO_FEEDS:
+            check_url = url.replace("limit=3", "limit=1")
+            data = fetch_url(check_url)
+            stored_title = state.get(name, {}).get("title", "")
+            if data.startswith("Error"):
+                status = "❌"
+                current_title = "(获取失败)"
+            else:
+                item = parse_latest_item(data)
+                if item:
+                    current_title = item["title"]
+                    status = "✅已最新" if current_title == stored_title else "🆕有更新"
+                else:
+                    current_title = "(解析失败)"
+                    status = "❌"
+            title = current_title[:40] + "..." if len(current_title) > 40 else current_title
+            results.append({"name": name, "title": title, "status": status})
+        return results
+
+    def get_daily_items(self, threshold: float) -> list[dict]:
+        state = load_state().get("videos", {})
+        recent = []
+        for name, val in state.items():
+            if isinstance(val, dict) and val.get("timestamp", 0) >= threshold:
+                recent.append({
+                    "name": name,
+                    "title": val.get("title", ""),
+                    "time": val.get("time", ""),
+                    "timestamp": val.get("timestamp", 0),
+                })
+        return recent
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)

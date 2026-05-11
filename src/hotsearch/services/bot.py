@@ -30,9 +30,6 @@ for cmd_id, cfg in _bot_cfg.items():
         COMMANDS[alias.upper()] = cmd_id
         COMMANDS[alias.capitalize()] = cmd_id
 
-NEWLAW_FILE = str(CACHE_FEEDS_DIR / "newlaw_last.json")
-NEWLAW_SH_FILE = str(CACHE_FEEDS_DIR / "newlaw_shanghai_last.json")
-
 TOOL_PREFIX = "hotsearch.tools"
 
 
@@ -80,90 +77,23 @@ def strip_links(text):
     )
 
 
-def load_newlaw_state(filepath):
-    try:
-        return json.loads(open(filepath).read())
-    except Exception:
-        return None
-
-
 def get_push_status():
     lines = ["📊 追踪状态概览\n"]
 
-    lines.append("📺 视频频道 (6个)")
-    from hotsearch.tools.feeds.video_feeds import (
-        VIDEO_FEEDS,
-        fetch_url,
-        parse_latest_item,
-    )
-    from hotsearch.tools.feeds.video_feeds import load_state as load_video_state
+    from hotsearch.tools.feeds import get_tools
 
-    videos_state = load_video_state().get("videos", {})
-    for name, url in VIDEO_FEEDS:
-        check_url = url.replace("limit=3", "limit=1")
-        data = fetch_url(check_url)
-        stored_title = videos_state.get(name, "")
-        if data.startswith("Error"):
-            current_title = "(获取失败)"
-            status = "❌"
-        else:
-            item = parse_latest_item(data)
-            if item:
-                current_title = item["title"]
-                status = "✅已最新" if current_title == stored_title else "🆕有更新"
-            else:
-                current_title = "(解析失败)"
-                status = "❌"
-        title = current_title[:40] + "..." if len(current_title) > 40 else current_title
-        display = f"• {name}: {title} [{status}]"
-        lines.append(display)
-
-    lines.append("\n\n📦 软件仓库 (2个)")
-    from hotsearch.tools.feeds.release_feeds import RELEASE_FEEDS, get_latest_release
-    from hotsearch.tools.feeds.release_feeds import load_state as load_release_state
-
-    releases_state = load_release_state().get("releases", {})
-    for name, url in RELEASE_FEEDS.items():
-        release = get_latest_release(url)
-        stored_title = releases_state.get(name, "")
-        if release:
-            current_title = release["title"]
-            status = "✅已最新" if current_title == stored_title else "🆕有更新"
-            title = (
-                current_title[:40] + "..." if len(current_title) > 40 else current_title
-            )
-            display = f"• {name}: {title} [{status}]"
-        else:
-            display = f"• {name}: (获取失败) [❌]"
-        lines.append(display)
-
-    lines.append("\n\n📋 法规监控 (2个)")
-
-    def _first_law_title(state):
-        if not state:
-            return None
-        if isinstance(state, dict):
-            laws = state.get("laws", [])
-            return laws[0].get("title") if laws else None
-        if isinstance(state, list) and state:
-            return state[0].get("title")
-        return None
-
-    law_title = _first_law_title(load_newlaw_state(NEWLAW_FILE))
-    if law_title:
-        lines.append(
-            f"• 国家法律法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}"
-        )
-    else:
-        lines.append("• 国家法律法规: (无记录)")
-
-    law_title = _first_law_title(load_newlaw_state(NEWLAW_SH_FILE))
-    if law_title:
-        lines.append(
-            f"• 上海地方法规: {law_title[:40]}{'...' if len(law_title) > 40 else ''}"
-        )
-    else:
-        lines.append("• 上海地方法规: (无记录)")
+    for tool in get_tools():
+        if not tool.state_file:
+            continue
+        items = tool.get_status()
+        if not items:
+            continue
+        lines.append(f"\n{tool.display_name or tool.name} ({len(items)}个)")
+        for item in items:
+            name = item.get("name", "")
+            title = item.get("title", "")
+            status = item.get("status", "")
+            lines.append(f"• {name}: {title} [{status}]")
 
     lines.append("\n💡 提示: 有新内容时会自动推送")
     return "\n".join(lines)

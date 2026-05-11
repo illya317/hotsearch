@@ -1,5 +1,7 @@
 {
-  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-  "max_seq_length": 512,
-  "use_fp16": false
+  "model": "mlx-community/Qwen3-Embedding-0.6B-8bit",
+  "max_seq_length": 8192,
+  "batch_size": 32,
+  "query_instruction": "Given a web search query, retrieve relevant passages that answer the query",
+  "doc_instruction": ""
 }
