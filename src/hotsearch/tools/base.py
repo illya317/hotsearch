@@ -14,6 +14,7 @@ class StandardItem(TypedDict, total=False):
     tags: list[str]
     summary: str | None
     source_name: str | None
+    timestamp: float
     raw: dict
 
 
@@ -24,6 +25,19 @@ class StandardResult(TypedDict):
     items: list[StandardItem]
     meta: dict | None
     output: str | None
+
+
+REQUIRED_ITEM_FIELDS = ("title", "summary", "timestamp", "tags", "source_name")
+
+
+def validate_standard_result(result: StandardResult) -> None:
+    """Raise ValueError if any item is missing a required field."""
+    for i, item in enumerate(result.get("items", [])):
+        missing = [f for f in REQUIRED_ITEM_FIELDS if f not in item]
+        if missing:
+            raise ValueError(
+                f"Item {i} missing required fields: {missing}"
+            )
 
 
 class ToolAdapter(ABC):

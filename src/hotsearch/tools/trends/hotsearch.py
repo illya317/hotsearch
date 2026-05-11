@@ -33,6 +33,7 @@ class HotsearchAdapter(TrendAdapter):
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)
+        ts = raw.get("timestamp", time.time())
         items: list[StandardItem] = []
         for item in raw.get("items", []):
             items.append(
@@ -46,6 +47,7 @@ class HotsearchAdapter(TrendAdapter):
                     "tags": item.get("tags", []),
                     "summary": item.get("heat_str", ""),
                     "source_name": raw.get("platform", ""),
+                    "timestamp": ts,
                     "raw": item,
                 }
             )
@@ -98,6 +100,7 @@ class HotsearchAdapter(TrendAdapter):
             "platform": platform,
             "display_name": name,
             "items": result_items,
+            "timestamp": time.time(),
         }
 
 

@@ -44,9 +44,7 @@ hotsearch/
 │   │   │   └── github_trending.py  # GitHub Search API
 │   │   ├── feeds/                   # 订阅适配器（pkgutil 自发现）
 │   │   │   ├── video_feeds.py      # RSSHub B站
-│   │   │   ├── release_feeds.py    # GitHub Release
-│   │   │   ├── newlaw.py           # 国家法律
-│   │   │   └── newlaw_shanghai.py  # 上海法规
+│   │   │   └── release_feeds.py    # GitHub Release
 │   │   └── system/
 │   │       ├── feishu_send.py       # 飞书消息发送
 │   │       ├── tavily_search.py     # Tavily 搜索
@@ -161,11 +159,19 @@ ls data/ranking/
 python3 scripts/generate-crontab.py --install
 ```
 
-## 新增平台
+## 新增平台 / 新增 Feeds
 
-1. 在 `tools/trends/` 新建 adapter（继承 TrendAdapter，实现 fetch + normalize）
-2. `config/cron.json` trends 加调度
-3. 代码不动，自发现自动注册
+**trends（pkgutil 自发现）**
+1. 在 `tools/trends/` 新建 adapter（继承 `TrendAdapter`，实现 `fetch` + `normalize`）
+2. `normalize()` 输出每个 item 必须包含 5 个字段：`title`、`summary`、`timestamp`、`tags`、`source_name`，缺失时报错
+3. `config/cron.json` trends 加调度
+4. 无需修改 `routers/api.py`、`services/trends.py` 等，自动注册
+
+**feeds（pkgutil 自发现）**
+1. 在 `tools/feeds/` 新建 adapter（继承 `FeedAdapter`，实现 `fetch` + `normalize`，可选 `check_new` / `get_status` / `get_daily_items`）
+2. `normalize()` 输出每个 item 必须包含 5 个字段：`title`、`summary`、`timestamp`、`tags`、`source_name`，缺失时报错
+3. `config/cron.json` feeds 加调度（可选 `ranking: false` 跳过 agent 直接推送）
+4. 无需修改 `routers/api.py`、`services/bot.py`、`services/feeds.py` 等，自动注册
 
 ## 标签维护
 
@@ -197,3 +203,7 @@ agent 不直接调 tools 做数据采集（logger/tag/feishu_send 除外）。
 ## 5. schemas 格式转换，routers 分发，统一数据出口
 
 HTTP → `routers/api.py`，飞书交互 → `services/bot.py`，推送 → `tools/system/feishu_send.py`。
+
+## 6. 适配器自动注册（pkgutil 自发现）
+
+`trends/` 和 `feeds/` 目录下的 adapter 通过 `pkgutil.iter_modules` + `importlib.import_module` 自动注册。新增或删除 adapter 文件后，**无需修改** `__init__.py`、`services/bot.py`、`services/feeds.py`、`routers/api.py` 等任何注册代码，运行时自动感知。

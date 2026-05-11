@@ -1,7 +1,49 @@
 import importlib
 import pkgutil
 
-from .base import FeedAdapter
+from hotsearch.tools.base import StandardItem, StandardResult, ToolAdapter  # noqa: F401
+
+
+class FeedAdapter(ToolAdapter):
+    """Base class for all feed source adapters."""
+
+    category = "feeds"
+    display_name: str = ""
+    state_file: str | None = None  # relative to CACHE_FEEDS_DIR
+
+    def check_new(self) -> list[dict]:
+        """Check for new items and return structured notifications.
+        Each dict MUST contain:
+          - title: str
+          - summary: str
+          - timestamp: float (unix timestamp)
+        Additional fields (e.g. name, status) are optional.
+        Override in subclass if the source supports new-item detection.
+        """
+        return []
+
+    def get_status(self) -> list[dict]:
+        """Return status entries for push status display.
+        Each dict MUST contain:
+          - title: str
+          - summary: str
+          - timestamp: float (unix timestamp)
+        Additional fields (e.g. name, status) are optional.
+        Override in subclass.
+        """
+        return []
+
+    def get_daily_items(self, threshold: float) -> list[dict]:
+        """Return recent items for daily summary.
+        Each dict MUST contain:
+          - title: str
+          - summary: str
+          - timestamp: float (unix timestamp)
+        Additional fields (e.g. name, time) are optional.
+        Override in subclass.
+        """
+        return []
+
 
 _TOOLS: dict[str, FeedAdapter] = {}
 _DISCOVERED = False

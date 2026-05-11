@@ -36,6 +36,7 @@ class AINewsAdapter(TrendAdapter):
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)
+        ts = raw.get("timestamp", time.time())
         items: list[StandardItem] = []
         for src in raw.get("sources", []):
             for item in src.get("items", []):
@@ -48,6 +49,7 @@ class AINewsAdapter(TrendAdapter):
                         "tags": item.get("tags", []),
                         "summary": item.get("desc", ""),
                         "source_name": src.get("display_name", src.get("source", "")),
+                        "timestamp": ts,
                         "raw": item,
                     }
                 )
@@ -69,7 +71,7 @@ class AINewsAdapter(TrendAdapter):
         else:
             raise ValueError(f"不支持的源: {source}")
 
-        result: dict[str, Any] = {"sources": []}
+        result: dict[str, Any] = {"sources": [], "timestamp": time.time()}
         for s in sources:
             try:
                 items = FETCHERS[s](limit)

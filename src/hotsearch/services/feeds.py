@@ -44,7 +44,13 @@ class FeedsService:
         for tool in get_tools():
             try:
                 items = tool.check_new()
-                notifications.extend(items)
+                for item in items:
+                    title = item.get("title", "")
+                    summary = item.get("summary", "")
+                    if summary:
+                        notifications.append(f"{summary}: {title}")
+                    else:
+                        notifications.append(title)
             except Exception:
                 pass
         return notifications

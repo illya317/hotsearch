@@ -20,7 +20,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
 
-from .base import FeedAdapter, StandardItem, StandardResult  # noqa: E402
+from hotsearch.tools.base import StandardItem, StandardResult  # noqa: E402
+from hotsearch.tools.feeds import FeedAdapter  # noqa: E402
+from hotsearch.tools.tag import classify  # noqa: E402
 
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 RSSHUB = os.environ.get("RSSHUB", "http://localhost:1200")
@@ -52,7 +54,13 @@ class VideoFeedsAdapter(FeedAdapter):
                     current_title = "(解析失败)"
                     status = "❌"
             title = current_title[:40] + "..." if len(current_title) > 40 else current_title
-            results.append({"name": name, "title": title, "status": status})
+            results.append({
+                "name": name,
+                "title": title,
+                "summary": "",
+                "status": status,
+                "timestamp": state.get(name, {}).get("timestamp", 0),
+            })
         return results
 
     def get_daily_items(self, threshold: float) -> list[dict]:
@@ -63,6 +71,7 @@ class VideoFeedsAdapter(FeedAdapter):
                 recent.append({
                     "name": name,
                     "title": val.get("title", ""),
+                    "summary": "",
                     "time": val.get("time", ""),
                     "timestamp": val.get("timestamp", 0),
                 })
@@ -70,6 +79,7 @@ class VideoFeedsAdapter(FeedAdapter):
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)
+        ts = raw.get("timestamp", time.time())
         items: list[StandardItem] = []
         for section in raw.get("videos", []):
             for entry in section.get("titles", []):
@@ -79,6 +89,8 @@ class VideoFeedsAdapter(FeedAdapter):
                 else:
                     title = str(entry).lstrip(" •")
                     tags = []
+                if not tags:
+                    tags = classify(title)
                 items.append(
                     {
                         "id": None,
@@ -88,6 +100,7 @@ class VideoFeedsAdapter(FeedAdapter):
                         "tags": tags,
                         "summary": None,
                         "source_name": section.get("name", ""),
+                        "timestamp": ts,
                         "raw": {"name": section.get("name"), "title": title},
                     }
                 )
@@ -106,7 +119,7 @@ class VideoFeedsAdapter(FeedAdapter):
                 titles = parse_rss_titles(data, 2)
                 if titles:
                     sections.append({"name": name, "titles": titles})
-        return {"videos": sections}
+        return {"videos": sections, "timestamp": time.time()}
 
     def check_new(self) -> list[str]:
         return check_new_videos()
@@ -200,8 +213,8 @@ def get_videos() -> str:
     return "\n".join(sections)
 
 
-def check_new_videos() -> list[str]:
-    """Check for new videos, update state, return formatted new items."""
+def check_new_videos() -> list[dict]:
+    """Check for new videos, update state, return structured new items."""
     state = load_state()
     videos = state.get("videos", {})
     new_items = []
@@ -214,7 +227,12 @@ def check_new_videos() -> list[str]:
         item = parse_latest_item(data)
         current_title = videos.get(name, {}).get("title")
         if item and item["title"] != current_title:
-            new_items.append(f"📺 {name}: {item['title']}")
+            new_items.append({
+                "title": item["title"],
+                "summary": name,
+                "timestamp": time.time(),
+                "name": name,
+            })
             videos[name] = {
                 "title": item["title"],
                 "time": now.strftime("%Y-%m-%d %H:%M"),
@@ -235,7 +253,8 @@ def main():
     if args.check_new:
         new_items = check_new_videos()
         if new_items:
-            print("\n".join(new_items))
+            for item in new_items:
+                print(f"📺 {item['summary']}: {item['title']}")
         else:
             print("No new videos")
     else:

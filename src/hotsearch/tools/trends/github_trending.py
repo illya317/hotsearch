@@ -22,6 +22,7 @@ class GitHubTrendingAdapter(TrendAdapter):
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)
+        ts = raw.get("timestamp", time.time())
         items: list[StandardItem] = []
         for item in raw.get("items", []):
             name = item.get("name", "")
@@ -34,6 +35,7 @@ class GitHubTrendingAdapter(TrendAdapter):
                     "tags": item.get("tags", []),
                     "summary": item.get("desc", ""),
                     "source_name": "GitHub",
+                    "timestamp": ts,
                     "raw": item,
                 }
             )
@@ -70,7 +72,7 @@ class GitHubTrendingAdapter(TrendAdapter):
                     "tags": classify(text),
                 }
             )
-        return {"items": items}
+        return {"items": items, "timestamp": time.time()}
 
 
 def fetch_trending(limit=10):

@@ -19,7 +19,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 from hotsearch import CACHE_FEEDS_DIR  # noqa: E402
 
-from .base import FeedAdapter, StandardItem, StandardResult  # noqa: E402
+from hotsearch.tools.base import StandardItem, StandardResult  # noqa: E402
+from hotsearch.tools.feeds import FeedAdapter  # noqa: E402
+from hotsearch.tools.tag import classify  # noqa: E402
 
 CACHE_FEEDS_DIR.mkdir(parents=True, exist_ok=True)
 STATE_FILE = CACHE_FEEDS_DIR / "release_state.json"
@@ -44,7 +46,13 @@ class ReleaseFeedsAdapter(FeedAdapter):
             else:
                 status = "❌"
                 title = "(获取失败)"
-            results.append({"name": name, "title": title, "status": status})
+            results.append({
+                "name": name,
+                "title": title,
+                "summary": "",
+                "status": status,
+                "timestamp": state.get(name, {}).get("timestamp", 0),
+            })
         return results
 
     def get_daily_items(self, threshold: float) -> list[dict]:
@@ -55,6 +63,7 @@ class ReleaseFeedsAdapter(FeedAdapter):
                 recent.append({
                     "name": name,
                     "title": val.get("title", ""),
+                    "summary": "",
                     "time": val.get("time", ""),
                     "timestamp": val.get("timestamp", 0),
                 })
@@ -62,17 +71,23 @@ class ReleaseFeedsAdapter(FeedAdapter):
 
     def normalize(self, raw: dict | list) -> StandardResult:
         assert isinstance(raw, dict)
+        ts = raw.get("timestamp", time.time())
         items: list[StandardItem] = []
         for item in raw.get("releases", []):
+            title = item.get("title", "")
+            tags = item.get("tags", [])
+            if not tags:
+                tags = classify(title)
             items.append(
                 {
                     "id": None,
-                    "title": item.get("title", ""),
+                    "title": title,
                     "url": item.get("link", ""),
                     "time": None,
-                    "tags": item.get("tags", []),
+                    "tags": tags,
                     "summary": None,
                     "source_name": item.get("name", ""),
+                    "timestamp": ts,
                     "raw": item,
                 }
             )
@@ -93,7 +108,7 @@ class ReleaseFeedsAdapter(FeedAdapter):
                 )
             else:
                 result.append({"name": name, "title": None, "error": "获取失败"})
-        return {"releases": result}
+        return {"releases": result, "timestamp": time.time()}
 
     def check_new(self) -> list[str]:
         return check_new_releases()
@@ -171,8 +186,8 @@ def get_releases() -> str:
     return "\n".join(lines)
 
 
-def check_new_releases() -> list[str]:
-    """Check for new releases, update state, return formatted new items."""
+def check_new_releases() -> list[dict]:
+    """Check for new releases, update state, return structured new items."""
     state = load_state()
     releases = state.get("releases", {})
     new_items = []
@@ -181,7 +196,12 @@ def check_new_releases() -> list[str]:
         release = get_latest_release(url)
         current_title = releases.get(name, {}).get("title")
         if release and release["title"] != current_title:
-            new_items.append(f"📦 {name}: {release['title']}")
+            new_items.append({
+                "title": release["title"],
+                "summary": name,
+                "timestamp": time.time(),
+                "name": name,
+            })
             releases[name] = {
                 "title": release["title"],
                 "time": now.strftime("%Y-%m-%d %H:%M"),
@@ -202,7 +222,8 @@ def main():
     if args.check_new:
         new_items = check_new_releases()
         if new_items:
-            print("\n".join(new_items))
+            for item in new_items:
+                print(f"📦 {item['summary']}: {item['title']}")
         else:
             print("No new releases")
     else:

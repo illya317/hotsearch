@@ -7,13 +7,11 @@ No public URL needed - connects outbound to Feishu.
 import json
 import os
 import re
-import subprocess
 import threading
 
 import lark_oapi as lark
 
-from hotsearch import BOT_CONFIG, CACHE_FEEDS_DIR
-from hotsearch.tools.feeds.video_feeds import get_videos  # type: ignore
+from hotsearch import BOT_CONFIG, CONFIG_DIR
 
 FS_APP_ID = os.environ.get("FS_APP_ID", "")
 FS_APP_SECRET = os.environ.get("FS_APP_SECRET", "")
@@ -30,44 +28,109 @@ for cmd_id, cfg in _bot_cfg.items():
         COMMANDS[alias.upper()] = cmd_id
         COMMANDS[alias.capitalize()] = cmd_id
 
-TOOL_PREFIX = "hotsearch.tools"
+
+def _standard_to_hotsearch(normalized: dict, platform: str) -> dict:
+    """Convert StandardResult to HotsearchData dict."""
+    return {
+        "platforms": [
+            {
+                "platform": platform,
+                "display_name": normalized.get("source_name", ""),
+                "items": [
+                    {
+                        "title": i.get("title", ""),
+                        "heat_str": i.get("summary", ""),
+                        "heat_num": 0,
+                        "label_name": "",
+                        "rating": None,
+                        "item_key": "",
+                    }
+                    for i in normalized.get("items", [])
+                ],
+            }
+        ]
+    }
 
 
-def _run_tool(*args) -> str:
-    r = subprocess.run(args, capture_output=True, text=True, timeout=30)
-    if r.returncode != 0:
-        return f"Error: {r.stderr.strip()}"
-    return r.stdout.strip()
+def _standard_to_ainews(normalized: dict, source: str) -> dict:
+    """Convert StandardResult to AINewsData dict."""
+    return {
+        "sources": [
+            {
+                "source": source,
+                "display_name": normalized.get("source_name", ""),
+                "items": [
+                    {
+                        "title": i.get("title", ""),
+                        "link": i.get("url", ""),
+                        "date": i.get("time", ""),
+                        "desc": i.get("summary", ""),
+                    }
+                    for i in normalized.get("items", [])
+                ],
+            }
+        ]
+    }
 
 
-def _run_hotsearch(cmd_id: str, limit: int) -> str:
+def _standard_to_github(normalized: dict) -> dict:
+    """Convert StandardResult to GitHubTrendingData dict."""
+    return {
+        "items": [
+            {
+                "name": i.get("title", ""),
+                "stars": i.get("raw", {}).get("stars", 0),
+                "desc": i.get("summary", ""),
+                "lang": i.get("raw", {}).get("lang", ""),
+            }
+            for i in normalized.get("items", [])
+        ]
+    }
+
+
+def _render_feeds(normalized: dict) -> str:
+    """Render feeds StandardResult via feeds_summary.j2 template."""
+    from jinja2 import Environment, FileSystemLoader
+
+    env = Environment(loader=FileSystemLoader(CONFIG_DIR / "prompts"))
+    template = env.get_template("feeds_summary.j2")
+    groups = {normalized.get("source_name", ""): normalized.get("items", [])}
+    return template.render(groups=groups, total=len(normalized.get("items", [])))
+
+
+def _run_trends(cmd_id: str, limit: int) -> str:
+    """Fetch trends via adapter and format via schemas."""
     cfg = _bot_cfg.get(cmd_id, {})
-    tool = cfg.get("tool")
+    tool_name = cfg.get("tool", "").replace("trends.", "")
     platform = cfg.get("platform")
-    args = ["python3", "-m", f"{TOOL_PREFIX}.{tool}"]
+
+    from hotsearch.tools.trends import get_tool
+
+    adapter = get_tool(tool_name)
+    if not adapter:
+        return f"未找到适配器: {tool_name}"
+
+    kwargs = {"limit": limit}
     if platform:
-        args.append(platform)
-    args.append(str(limit))
-    args.append("--json")
-    raw = _run_tool(*args)
-    # Parse JSON and format via schemas
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return raw
-    if tool == "trends.hotsearch":
+        kwargs["platform"] = platform
+
+    raw = adapter.fetch(**kwargs)
+    normalized = adapter.normalize(raw)
+    from hotsearch.tools.base import validate_standard_result
+
+    validate_standard_result(normalized)
+
+    if tool_name == "hotsearch":
         from hotsearch.schemas import HotsearchData
-
-        return HotsearchData.from_dict(data).format_text()
-    elif tool == "trends.ainews":
+        return HotsearchData.from_dict(_standard_to_hotsearch(normalized, platform or "hot")).format_text()
+    elif tool_name == "ainews":
         from hotsearch.schemas import AINewsData
-
-        return AINewsData.from_dict(data).format_text()
-    elif tool == "trends.github_trending":
+        return AINewsData.from_dict(_standard_to_ainews(normalized, platform or "decoder")).format_text()
+    elif tool_name == "github_trending":
         from hotsearch.schemas import GitHubTrendingData
+        return GitHubTrendingData.from_dict(_standard_to_github(normalized)).format_text()
 
-        return GitHubTrendingData.from_dict(data).format_text()
-    return raw
+    return str(normalized)
 
 
 def strip_links(text):
@@ -131,7 +194,16 @@ def handle_message(text):
     if cmd_type == "help":
         return get_help()
     elif cmd_type == "videos":
-        return get_videos()
+        from hotsearch.tools.feeds import get_tool
+        adapter = get_tool("videos")
+        if not adapter:
+            return "未找到视频适配器"
+        raw = adapter.fetch()
+        normalized = adapter.normalize(raw)
+        from hotsearch.tools.base import validate_standard_result
+
+        validate_standard_result(normalized)
+        return _render_feeds(normalized)
     elif cmd_type == "push":
         return get_push_status()
     elif cmd_type == "group":
@@ -139,10 +211,24 @@ def handle_message(text):
         for target_id in cfg.get("targets", []):
             target_cfg = _bot_cfg.get(target_id, {})
             if "tool" in target_cfg:
-                results.append(_run_hotsearch(target_id, limit))
+                results.append(_run_trends(target_id, limit))
         return "\n\n".join(results)
     elif "tool" in cfg:
-        return _run_hotsearch(cmd_id, limit)
+        tool = cfg.get("tool", "")
+        if tool.startswith("trends."):
+            return _run_trends(cmd_id, limit)
+        elif tool.startswith("feeds."):
+            from hotsearch.tools.feeds import get_tool
+            adapter = get_tool(tool.replace("feeds.", ""))
+            if not adapter:
+                return f"未找到适配器: {tool}"
+            raw = adapter.fetch(limit=limit)
+            normalized = adapter.normalize(raw)
+            from hotsearch.tools.base import validate_standard_result
+
+            validate_standard_result(normalized)
+            return _render_feeds(normalized)
+        return _run_trends(cmd_id, limit)
     else:
         return "未知命令，输入 help 查看可用命令"
 
