@@ -163,6 +163,18 @@ class SummaryAgent:
 
         return self._render_and_send("all", all_scored, send)
 
+    @staticmethod
+    def _extract_url(item: dict) -> str:
+        """Extract best available URL from item or its raw data."""
+        if url := item.get("url"):
+            return url
+        raw = item.get("raw", {}) or {}
+        if url := raw.get("www_url"):
+            return url
+        if url := raw.get("link"):
+            return url
+        return ""
+
     def _summarize_result(self, title: str, raw_context: str) -> str:
         """Use LLM to condense search results into a concise Chinese summary."""
         if not raw_context or not raw_context.strip():
@@ -271,10 +283,50 @@ class SummaryAgent:
         json_path = CACHE_SUMMARY_DIR / f"summary_{ts}.json"
         json_path.write_text(json.dumps(summary_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        # Save formatted output
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        md_path = OUTPUT_DIR / f"summary_{ts}.md"
-        md_path.write_text(text, encoding="utf-8")
+        # Save report JSON for HTML rendering
+        collected = sum(
+            len(s.get("deep", [])) + len(s.get("brief", [])) + len(s.get("discard", []))
+            for s in scored_list
+        )
+        report_json = {
+            "id": f"report-{ts}",
+            "title": "消息速递",
+            "generatedAt": time_str,
+            "stats": {
+                "collected": collected,
+                "pushed": total,
+                "discarded": discarded,
+            },
+            "sources": [
+                {"name": s["source"], "count": s["count"], "avg": s["avg"]} for s in stats
+            ],
+            "deep": [
+                {
+                    "id": f"deep-{i}",
+                    "title": it.get("title", ""),
+                    "url": self._extract_url(it),
+                    "source": it.get("source", ""),
+                    "score": it.get("score", 0),
+                    "tags": it.get("tags", []),
+                    "summary": it.get("search_context", ""),
+                }
+                for i, it in enumerate(deep_items)
+            ],
+            "brief": [
+                {
+                    "id": f"brief-{i}",
+                    "title": it.get("title", ""),
+                    "url": self._extract_url(it),
+                    "source": it.get("source", ""),
+                    "score": it.get("score", 0),
+                    "tags": it.get("tags", []),
+                    "summary": it.get("search_context", ""),
+                }
+                for i, it in enumerate(brief_items)
+            ],
+        }
+        report_path = CACHE_SUMMARY_DIR / f"report_{ts}.json"
+        report_path.write_text(json.dumps(report_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
         # Save 3 ranking files
         RANKING_DIR.mkdir(parents=True, exist_ok=True)

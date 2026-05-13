@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ report.title }}</title>
+<style>
+/* ============================
+   === ROOT VARIABLES ===
+   ============================ */
+:root {
+  --bg: #f7f5f0;
+  --fg: #000000;
+  --accent: #c45c26;
+  --accent-light: #e07a3f;
+  --muted: #5a5348;
+  --bg-elevated: #eae6dd;
+  --bg-card: #fffefc;
+  --border: #d8d3c9;
+  --font-heading: 'STFangsong', 'FangSong', '仿宋', serif;
+  --font-body: 'STFangsong', 'FangSong', '仿宋', serif;
+  --font-mono: 'Courier New', 'STFangsong', 'FangSong', '仿宋', monospace;
+  --success: #4a7c59;
+  --danger: #b5423a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { font-size: 18px; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.6;
+}
+
+/* === LAYOUT === */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 4rem;
+}
+
+/* === HEADER === */
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+header h1 {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+header .date {
+  font-size: 0.9rem;
+  color: var(--fg);
+  margin-top: 0.4rem;
+}
+.accent-line {
+  width: 3rem;
+  height: 3px;
+  background: var(--accent);
+  margin: 1.2rem auto 0;
+}
+
+/* === SECTION === */
+.section {
+  margin-bottom: 2.5rem;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+.section-icon {
+  font-size: 1.1rem;
+}
+.section-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.section-count {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+/* === NEWS CARD === */
+.news-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 0.9rem;
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+.news-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+
+.news-title {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.45;
+  margin-bottom: 0.35rem;
+}
+.news-title a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s, color 0.2s;
+}
+.news-title a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent-light);
+}
+
+.news-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.news-source {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(196,92,38,0.1);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+.news-score {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+.news-tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--fg);
+  background: var(--bg-elevated);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.news-summary {
+  font-size: 0.88rem;
+  line-height: 1.75;
+  color: var(--fg);
+  font-weight: 500;
+  margin-top: 0.4rem;
+}
+
+/* === FEEDBACK === */
+.feedback-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+}
+.fb-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.fb-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.fb-btn.active-like {
+  background: rgba(74,124,89,0.1);
+  border-color: var(--success);
+  color: var(--success);
+}
+.fb-btn.active-dislike {
+  background: rgba(181,66,58,0.08);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.fb-done {
+  font-size: 0.75rem;
+  color: var(--fg);
+  display: none;
+  align-items: center;
+  gap: 0.3rem;
+}
+.fb-done.show {
+  display: inline-flex;
+}
+
+/* === BRIEF ITEM === */
+.brief-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  transition: box-shadow 0.2s ease;
+}
+.brief-item:hover {
+  box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+}
+.brief-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.brief-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  flex: 1;
+}
+.brief-title a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s, color 0.2s;
+}
+.brief-title a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent-light);
+}
+.brief-summary {
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--fg);
+  font-weight: 500;
+}
+.brief-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+.brief-source {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(196,92,38,0.1);
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+}
+.brief-score {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+/* === STATS === */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+.stat-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  text-align: center;
+}
+.stat-name {
+  font-size: 0.75rem;
+  color: var(--fg);
+  margin-bottom: 0.15rem;
+}
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* === FOOTER === */
+footer {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--fg);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 600px) {
+  .container { padding: 1.5rem 1rem 2.5rem; }
+  header h1 { font-size: 1.5rem; }
+  .news-card { padding: 1rem; }
+  .brief-top { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<header>
+  <h1>{{ report.title }}</h1>
+  <div class="date">{{ report.generatedAt }}</div>
+  <div class="accent-line"></div>
+</header>
+
+<!-- ========== 重点关注 ========== -->
+<section class="section" id="section-deep">
+  <div class="section-header">
+    <span class="section-icon">&#128293;</span>
+    <span class="section-title">重点关注</span>
+    <span class="section-count">{{ report.deep | length }} 条</span>
+  </div>
+  <div id="deepList">
+  {% for item in report.deep %}
+    <article class="news-card" data-id="{{ item.id }}">
+      <h2 class="news-title">
+        {%- if item.url %}
+        <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+        {%- else %}
+        {{ item.title }}
+        {%- endif %}
+      </h2>
+      <div class="news-meta">
+        <span class="news-source">{{ item.source }}</span>
+        <span class="news-score">{{ item.score }}分</span>
+        <div class="news-tags">
+          {% for tag in item.tags %}
+          <span class="tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <p class="news-summary">{{ item.summary }}</p>
+      <div class="feedback-bar">
+        <button class="fb-btn fb-like" onclick="toggleFeedback('{{ item.id }}','like')">&#128077; 喜欢</button>
+        <button class="fb-btn fb-dislike" onclick="toggleFeedback('{{ item.id }}','dislike')">&#128078; 不喜欢</button>
+        <span class="fb-done" id="done-{{ item.id }}">&#10003; 已反馈</span>
+      </div>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+<!-- ========== 简报 ========== -->
+<section class="section" id="section-brief">
+  <div class="section-header">
+    <span class="section-icon">&#128203;</span>
+    <span class="section-title">简报</span>
+    <span class="section-count">{{ report.brief | length }} 条</span>
+  </div>
+  <div id="briefList">
+  {% for item in report.brief %}
+    <article class="brief-item" data-id="{{ item.id }}">
+      <div class="brief-top">
+        <h3 class="brief-title">
+          {%- if item.url %}
+          <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+          {%- else %}
+          {{ item.title }}
+          {%- endif %}
+        </h3>
+      </div>
+      <p class="brief-summary">{{ item.summary }}</p>
+      <div class="brief-meta">
+        <span class="brief-source">{{ item.source }}</span>
+        <span class="brief-score">{{ item.score }}分</span>
+        <div class="news-tags">
+          {% for tag in item.tags %}
+          <span class="tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="feedback-bar">
+        <button class="fb-btn fb-like" onclick="toggleFeedback('{{ item.id }}','like')">&#128077; 喜欢</button>
+        <button class="fb-btn fb-dislike" onclick="toggleFeedback('{{ item.id }}','dislike')">&#128078; 不喜欢</button>
+        <span class="fb-done" id="done-{{ item.id }}">&#10003; 已反馈</span>
+      </div>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+<!-- ========== 统计 ========== -->
+<section class="section" id="section-stats">
+  <div class="section-header">
+    <span class="section-icon">&#128202;</span>
+    <span class="section-title">来源统计</span>
+    <span class="section-count">{{ report.sources | length }} 来源</span>
+  </div>
+  <div class="stats-grid" id="statsList">
+  {% for source in report.sources %}
+    <div class="stat-item">
+      <div class="stat-name">{{ source.name }}</div>
+      <div class="stat-val">{{ source.count }}条 · 均分{{ source.avg }}</div>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+<footer id="pageFooter">
+  采集 {{ report.stats.collected }} 条 · 推送 {{ report.stats.pushed }} 条 · 丢弃 {{ report.stats.discarded }} 条
+</footer>
+
+<!-- ========== 偏好导出 ========== -->
+<section class="section" id="section-export" style="display:none;">
+  <div class="section-header">
+    <span class="section-icon">&#128221;</span>
+    <span class="section-title">偏好反馈</span>
+  </div>
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1.2rem 1.4rem;">
+    <pre id="prefText" style="font-family:var(--font-mono);font-size:0.78rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;"></pre>
+    <button class="fb-btn" onclick="copyPref()" style="margin-top:0.6rem;">&#128203; 复制</button>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<script>
+/* ============================
+   === FEEDBACK ===
+   ============================ */
+const REPORT_ID = '{{ report.id | default('default') }}';
+const LS_KEY = 'hotsearch-feedback-' + REPORT_ID;
+
+function loadFeedback() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }
+}
+function saveFeedback(data) {
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+
+function renderState(id, data) {
+  const entry = data[id];
+  const card = document.querySelector('[data-id="' + id + '"]');
+  if (!card) return;
+  const likeBtn = card.querySelector('.fb-like');
+  const dislikeBtn = card.querySelector('.fb-dislike');
+  const doneLabel = document.getElementById('done-' + id);
+
+  likeBtn.classList.remove('active-like');
+  dislikeBtn.classList.remove('active-dislike');
+
+  if (entry) {
+    if (entry.type === 'like') likeBtn.classList.add('active-like');
+    if (entry.type === 'dislike') dislikeBtn.classList.add('active-dislike');
+    doneLabel.classList.add('show');
+  } else {
+    doneLabel.classList.remove('show');
+  }
+}
+
+function toggleFeedback(id, type) {
+  const data = loadFeedback();
+  const current = data[id];
+
+  if (current && current.type === type) {
+    delete data[id];
+    saveFeedback(data);
+    renderState(id, data);
+    updatePrefExport();
+    return;
+  }
+
+  data[id] = { type: type, time: Date.now() };
+  saveFeedback(data);
+  renderState(id, data);
+  updatePrefExport();
+}
+
+/* ============================
+   === PREFERENCE EXPORT ===
+   ============================ */
+function updatePrefExport() {
+  const data = loadFeedback();
+  const ids = Object.keys(data);
+  if (!ids.length) {
+    document.getElementById('section-export').style.display = 'none';
+    return;
+  }
+
+  const titleMap = {};
+  document.querySelectorAll('[data-id]').forEach(el => {
+    const link = el.querySelector('.news-title a, .brief-title a');
+    const text = el.querySelector('.news-title, .brief-title');
+    titleMap[el.dataset.id] = link ? link.textContent : (text ? text.textContent : el.dataset.id);
+  });
+
+  const likes = [];
+  const dislikes = [];
+  ids.forEach(id => {
+    const entry = data[id];
+    const title = titleMap[id] || id;
+    if (entry.type === 'like') likes.push(title);
+    if (entry.type === 'dislike') dislikes.push(title);
+  });
+
+  const lines = ['## 偏好反馈'];
+  if (likes.length) {
+    lines.push('', '### 喜欢');
+    likes.forEach(t => lines.push('- ' + t));
+  }
+  if (dislikes.length) {
+    lines.push('', '### 不喜欢');
+    dislikes.forEach(t => lines.push('- ' + t));
+  }
+
+  document.getElementById('prefText').textContent = lines.join('\n');
+  document.getElementById('section-export').style.display = '';
+}
+
+function copyPref() {
+  const text = document.getElementById('prefText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#section-export .fb-btn');
+    const orig = btn.textContent;
+    btn.textContent = '已复制';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+/* ============================
+   === INIT ===
+   ============================ */
+(function init() {
+  const data = loadFeedback();
+  document.querySelectorAll('[data-id]').forEach(el => {
+    renderState(el.dataset.id, data);
+  });
+  updatePrefExport();
+})();
+</script>
+
+</body>
+</html>

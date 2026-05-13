@@ -61,6 +61,7 @@ case "$1" in
             _step_log "step2_content" "$mode" "src/hotsearch/agents/content.py" --source "$mode"
         done
         _step_log "step3_summary" "all" "src/hotsearch/agents/summary.py" --source all --send
+        _step_log "step4_html" "all" "scripts/html_convert.py"
         ;;
     feeds)
         SCRIPT="$(_script_for_task "$1")"

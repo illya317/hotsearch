@@ -78,6 +78,11 @@ class ReleaseFeedsAdapter(FeedAdapter):
             tags = item.get("tags", [])
             if not tags:
                 tags = classify(title)
+            summary = item.get("summary", "")
+            if summary:
+                summary = _strip_html(summary)
+                if len(summary) > 200:
+                    summary = summary[:197] + "..."
             items.append(
                 {
                     "id": None,
@@ -85,7 +90,7 @@ class ReleaseFeedsAdapter(FeedAdapter):
                     "url": item.get("link", ""),
                     "time": None,
                     "tags": tags,
-                    "summary": None,
+                    "summary": summary or None,
                     "source_name": item.get("name", ""),
                     "timestamp": ts,
                     "raw": item,
@@ -129,6 +134,13 @@ def fetch_url(url: str, timeout: int = 15) -> str:
         return f"Error: {e}"
 
 
+def _strip_html(text: str) -> str:
+    import re
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def get_latest_release(atom_url: str) -> dict | None:
     data = fetch_url(atom_url)
     if data.startswith("Error"):
@@ -141,7 +153,8 @@ def get_latest_release(atom_url: str) -> dict | None:
             title = entry.findtext("atom:title", "", ns)
             link_el = entry.find("atom:link", ns)
             link = link_el.get("href", "") if link_el is not None else ""
-            return {"title": title, "link": link}
+            content = entry.findtext("atom:content", "", ns) or entry.findtext("atom:summary", "", ns)
+            return {"title": title, "link": link, "summary": content}
     except Exception:
         pass
     return None
